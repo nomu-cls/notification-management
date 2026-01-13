@@ -16,9 +16,10 @@ const CASE_NAME = 'Case 3: ワークショップ報告';
 /**
  * Handle workshop report
  * @param {Object} data - Report data from GAS webhook
+ * @param {Object} injectedConfig - Configuration from GAS payload
  */
-export async function handleWorkshop(data) {
-    const config = await getConfig();
+export async function handleWorkshop(data, injectedConfig) {
+    const config = injectedConfig || await getConfig();
 
     if (!config) {
         await notifyError({

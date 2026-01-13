@@ -15,9 +15,11 @@ const CASE_NAME = 'Case 1: 個別相談予約';
  * Handle consultation booking notification
  * Receives pre-processed data from GAS (staff already matched, columns written)
  * @param {Object} data - Data from GAS including matched staff and chatworkId
+ * @param {Object} injectedConfig - Configuration from GAS payload
  */
-export async function handleConsultation(data) {
-    const config = await getConfig();
+export async function handleConsultation(data, injectedConfig) {
+    // Use injected config if available, otherwise check Env Vars (legacy/fallback)
+    const config = injectedConfig || await getConfig();
 
     if (!config) {
         await notifyError({

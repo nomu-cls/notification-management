@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { type, data } = req.body || {};
+    const { type, data, config } = req.body || {};
 
     // Validate payload
     if (!type || !data) {
@@ -42,17 +42,17 @@ export default async function handler(req, res) {
         switch (type) {
             case 'consultation':
                 // Case 1: Individual Consultation Booking
-                result = await handleConsultation(data);
+                result = await handleConsultation(data, config);
                 break;
 
             case 'application':
                 // Case 2: Main Course Application
-                result = await handleApplication(data);
+                result = await handleApplication(data, config);
                 break;
 
             case 'workshop':
                 // Case 3: Workshop Report
-                result = await handleWorkshop(data);
+                result = await handleWorkshop(data, config);
                 break;
 
             default:

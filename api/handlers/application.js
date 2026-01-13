@@ -20,9 +20,10 @@ const CASE_NAME = 'Case 2: 本講座申し込み';
 /**
  * Handle main course application
  * @param {Object} data - Application data from GAS webhook
+ * @param {Object} injectedConfig - Configuration from GAS payload
  */
-export async function handleApplication(data) {
-    const config = await getConfig();
+export async function handleApplication(data, injectedConfig) {
+    const config = injectedConfig || await getConfig();
 
     if (!config) {
         await notifyError({

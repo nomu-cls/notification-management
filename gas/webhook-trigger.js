@@ -3,8 +3,9 @@
  * 
  * このスクリプトは以下を行います：
  * 1. フォーム送信を検知
- * 2. スプレッドシート操作（スタッフマッチング、書き込み）
- * 3. Vercel API への通知リクエスト送信
+ * 2. Firestoreから設定を取得
+ * 3. スプレッドシート操作（スタッフマッチング、書き込み）
+ * 4. Vercel API への通知リクエスト送信（設定込み）
  * 
  * 設定方法:
  * 1. Google Sheets > 拡張機能 > Apps Script を開く
@@ -18,15 +19,20 @@
 // ========================================
 
 const CONFIG = {
-    // Vercel APIのURL（デプロイ後に更新）
+    // Vercel APIのURL
     WEBHOOK_URL: 'https://notification-management-khaki.vercel.app/api/webhook',
 
-    // Webhook認証シークレット（Vercel側と同じ値を設定）
+    // Webhook認証シークレット
     WEBHOOK_SECRET: 'my-secret-key-12345',
 
-    // このスプレッドシートのタイプを設定
+    // このスプレッドシートのタイプ
     // 'consultation' | 'application' | 'workshop'
     FORM_TYPE: 'consultation',
+
+    // Firestore設定（React UIと同じ値）
+    FIREBASE_PROJECT_ID: 'challengemanage',
+    FIREBASE_API_KEY: 'AIzaSyB55BdrbCUKU172fvtcNaqdGtjDIR-fvP4',
+    CONFIG_DOC_ID: 'main',
 
     // Case 1: スタッフリストシート名
     STAFF_LIST_SHEET: 'スタッフリスト',
@@ -38,10 +44,61 @@ const CONFIG = {
     STAFF_COLUMN: 9,       // Column I
     VIEWER_URL_COLUMN: 15, // Column O
 
-    // Viewer URL 生成用（適当な文字列）
+    // Viewer URL 生成用
     VIEWER_URL_SALT: 'notification-salt-2026',
     VIEWER_BASE_URL: 'https://notification-management-khaki.vercel.app'
 };
+
+// ========================================
+// Firestore から設定を取得
+// ========================================
+
+/**
+ * Firestore REST API から設定を取得
+ */
+function getFirestoreConfig() {
+    const url = `https://firestore.googleapis.com/v1/projects/${CONFIG.FIREBASE_PROJECT_ID}/databases/(default)/documents/notification_config/${CONFIG.CONFIG_DOC_ID}?key=${CONFIG.FIREBASE_API_KEY}`;
+
+    try {
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+        const responseCode = response.getResponseCode();
+
+        if (responseCode !== 200) {
+            Logger.log('Firestore fetch failed: ' + response.getContentText());
+            return null;
+        }
+
+        const doc = JSON.parse(response.getContentText());
+        return parseFirestoreDocument(doc.fields);
+    } catch (error) {
+        Logger.log('Error fetching config from Firestore: ' + error.toString());
+        return null;
+    }
+}
+
+/**
+ * Firestoreドキュメントのフィールドをパース
+ */
+function parseFirestoreDocument(fields) {
+    if (!fields) return {};
+
+    const result = {};
+    for (const key in fields) {
+        const field = fields[key];
+        if (field.stringValue !== undefined) {
+            result[key] = field.stringValue;
+        } else if (field.integerValue !== undefined) {
+            result[key] = parseInt(field.integerValue);
+        } else if (field.booleanValue !== undefined) {
+            result[key] = field.booleanValue;
+        } else if (field.arrayValue !== undefined) {
+            result[key] = (field.arrayValue.values || []).map(v => v.stringValue || v.integerValue);
+        } else if (field.mapValue !== undefined) {
+            result[key] = parseFirestoreDocument(field.mapValue.fields);
+        }
+    }
+    return result;
+}
 
 // ========================================
 // メイン関数
@@ -49,7 +106,6 @@ const CONFIG = {
 
 /**
  * フォーム送信時に呼ばれる関数
- * トリガー設定: 「フォーム送信時」
  */
 function onFormSubmit(e) {
     try {
@@ -67,23 +123,29 @@ function onFormSubmit(e) {
             }
         });
 
+        // Firestoreから設定を取得
+        const firestoreConfig = getFirestoreConfig();
+        if (!firestoreConfig) {
+            Logger.log('Warning: Could not fetch config from Firestore. Using defaults.');
+        }
+
         // ケースに応じた処理を実行
         let result;
         switch (CONFIG.FORM_TYPE) {
             case 'consultation':
-                result = handleConsultation(sheet, rowIndex, formData);
+                result = handleConsultation(sheet, rowIndex, formData, firestoreConfig);
                 break;
             case 'application':
-                result = handleApplication(sheet, rowIndex, formData);
+                result = handleApplication(sheet, rowIndex, formData, firestoreConfig);
                 break;
             case 'workshop':
-                result = handleWorkshop(sheet, rowIndex, formData);
+                result = handleWorkshop(sheet, rowIndex, formData, firestoreConfig);
                 break;
             default:
                 throw new Error('Unknown FORM_TYPE: ' + CONFIG.FORM_TYPE);
         }
 
-        // Vercel API へ通知リクエストを送信
+        // Vercel API へ通知リクエストを送信（設定込み）
         sendNotificationRequest(result);
 
         Logger.log('Processing completed for row ' + rowIndex);
@@ -98,52 +160,43 @@ function onFormSubmit(e) {
 // Case 1: 個別相談予約
 // ========================================
 
-function handleConsultation(sheet, rowIndex, formData) {
+function handleConsultation(sheet, rowIndex, formData, firestoreConfig) {
     const ss = sheet.getParent();
 
-    // フォームデータから必要な情報を取得
     const dateTime = formData['日時'] || formData['予約日時'] || '';
     const certifiedConsultant = formData['資格'] || formData['認定コンサルタント'] || '';
     const clientName = formData['氏名'] || formData['お名前'] || '';
     const clientEmail = formData['メールアドレス'] || formData['メール'] || '';
 
-    // Step 1: スタッフリストからマッチング
+    // スタッフリストからマッチング
     const staffListSheet = ss.getSheetByName(CONFIG.STAFF_LIST_SHEET);
-    if (!staffListSheet) {
-        throw new Error('スタッフリストシートが見つかりません: ' + CONFIG.STAFF_LIST_SHEET);
-    }
-
-    const staffData = staffListSheet.getDataRange().getValues();
-    const staffHeaders = staffData[0];
-
-    // 列インデックスを取得
-    const dateTimeColIdx = findColumnIndex(staffHeaders, ['日時', 'DateTime']);
-    const certColIdx = findColumnIndex(staffHeaders, ['資格', 'Certified']);
-    const staffNameColIdx = findColumnIndex(staffHeaders, ['名前', 'Name', 'スタッフ名']);
-
     let matchedStaff = null;
-    for (let i = 1; i < staffData.length; i++) {
-        const row = staffData[i];
-        if (row[dateTimeColIdx] === dateTime &&
-            row[certColIdx] && row[certColIdx].toString().includes(certifiedConsultant)) {
-            matchedStaff = row[staffNameColIdx];
-            break;
+    let chatworkId = null;
+
+    if (staffListSheet) {
+        const staffData = staffListSheet.getDataRange().getValues();
+        const staffHeaders = staffData[0];
+
+        const dateTimeColIdx = findColumnIndex(staffHeaders, ['日時', 'DateTime']);
+        const certColIdx = findColumnIndex(staffHeaders, ['資格', 'Certified']);
+        const staffNameColIdx = findColumnIndex(staffHeaders, ['名前', 'Name', 'スタッフ名']);
+
+        for (let i = 1; i < staffData.length; i++) {
+            const row = staffData[i];
+            if (row[dateTimeColIdx] === dateTime &&
+                row[certColIdx] && row[certColIdx].toString().includes(certifiedConsultant)) {
+                matchedStaff = row[staffNameColIdx];
+                break;
+            }
         }
     }
 
-    // Step 2: スタッフ名を書き込み（Column I）
+    // スタッフ名を書き込み（Column I）
     if (matchedStaff) {
         const surname = extractSurname(matchedStaff);
         sheet.getRange(rowIndex, CONFIG.STAFF_COLUMN).setValue(surname);
-    }
 
-    // Step 3: Viewer URL を生成して書き込み（Column O）
-    const viewerUrl = generateViewerUrl(clientEmail, clientName);
-    sheet.getRange(rowIndex, CONFIG.VIEWER_URL_COLUMN).setValue(viewerUrl);
-
-    // Step 4: Chatwork ID を取得
-    let chatworkId = null;
-    if (matchedStaff) {
+        // Chatwork ID を取得
         const chatSheet = ss.getSheetByName(CONFIG.STAFF_CHAT_SHEET);
         if (chatSheet) {
             const chatData = chatSheet.getDataRange().getValues();
@@ -152,7 +205,7 @@ function handleConsultation(sheet, rowIndex, formData) {
             const idColIdx = findColumnIndex(chatHeaders, ['ChatworkID', 'ID', 'Chatwork']);
 
             for (let i = 1; i < chatData.length; i++) {
-                if (chatData[i][nameColIdx] && chatData[i][nameColIdx].toString().includes(extractSurname(matchedStaff))) {
+                if (chatData[i][nameColIdx] && chatData[i][nameColIdx].toString().includes(surname)) {
                     chatworkId = chatData[i][idColIdx];
                     break;
                 }
@@ -160,8 +213,13 @@ function handleConsultation(sheet, rowIndex, formData) {
         }
     }
 
+    // Viewer URL を生成して書き込み（Column O）
+    const viewerUrl = generateViewerUrl(clientEmail, clientName);
+    sheet.getRange(rowIndex, CONFIG.VIEWER_URL_COLUMN).setValue(viewerUrl);
+
     return {
         type: 'consultation',
+        config: firestoreConfig, // Firestoreの設定を含める
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: rowIndex,
@@ -179,11 +237,12 @@ function handleConsultation(sheet, rowIndex, formData) {
 // Case 2: 本講座申し込み
 // ========================================
 
-function handleApplication(sheet, rowIndex, formData) {
+function handleApplication(sheet, rowIndex, formData, firestoreConfig) {
     const applicantName = formData['氏名'] || formData['お名前'] || '';
 
     return {
         type: 'application',
+        config: firestoreConfig, // Firestoreの設定を含める
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: rowIndex,
@@ -197,9 +256,10 @@ function handleApplication(sheet, rowIndex, formData) {
 // Case 3: 体験会報告
 // ========================================
 
-function handleWorkshop(sheet, rowIndex, formData) {
+function handleWorkshop(sheet, rowIndex, formData, firestoreConfig) {
     return {
         type: 'workshop',
+        config: firestoreConfig, // Firestoreの設定を含める
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: rowIndex,
@@ -212,9 +272,6 @@ function handleWorkshop(sheet, rowIndex, formData) {
 // ユーティリティ関数
 // ========================================
 
-/**
- * 列名から列インデックスを取得
- */
 function findColumnIndex(headers, candidates) {
     for (let i = 0; i < headers.length; i++) {
         for (const candidate of candidates) {
@@ -226,18 +283,12 @@ function findColumnIndex(headers, candidates) {
     return -1;
 }
 
-/**
- * 名前から苗字を抽出
- */
 function extractSurname(fullName) {
     if (!fullName) return '';
     const parts = fullName.toString().split(/[\s　]+/);
     return parts[0];
 }
 
-/**
- * Viewer URL を生成
- */
 function generateViewerUrl(email, name) {
     const input = CONFIG.VIEWER_URL_SALT + ':' + (email || name) + ':' + Date.now();
     const hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, input);
@@ -245,9 +296,6 @@ function generateViewerUrl(email, name) {
     return CONFIG.VIEWER_BASE_URL + '/viewer/' + hexHash;
 }
 
-/**
- * Vercel API へ通知リクエストを送信
- */
 function sendNotificationRequest(payload) {
     const options = {
         method: 'POST',
@@ -269,24 +317,25 @@ function sendNotificationRequest(payload) {
     return JSON.parse(response.getContentText());
 }
 
-/**
- * エラー通知
- */
 function sendErrorNotification(error) {
     Logger.log('ERROR: ' + error.toString());
-    // 必要に応じてメール通知などを追加
 }
 
 // ========================================
-// テスト・ユーティリティ関数
+// テスト関数
 // ========================================
 
-/**
- * Webhook接続テスト
- */
+function testFirestoreConfig() {
+    const config = getFirestoreConfig();
+    Logger.log('Firestore Config: ' + JSON.stringify(config, null, 2));
+}
+
 function testWebhook() {
+    const firestoreConfig = getFirestoreConfig();
+
     const testPayload = {
         type: 'consultation',
+        config: firestoreConfig,
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: 999,
@@ -310,13 +359,9 @@ function testWebhook() {
     }
 }
 
-/**
- * トリガーを自動設定
- */
 function createFormSubmitTrigger() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // 既存のトリガーを削除
     const triggers = ScriptApp.getProjectTriggers();
     triggers.forEach(trigger => {
         if (trigger.getHandlerFunction() === 'onFormSubmit') {
@@ -324,7 +369,6 @@ function createFormSubmitTrigger() {
         }
     });
 
-    // 新しいトリガーを作成
     ScriptApp.newTrigger('onFormSubmit')
         .forSpreadsheet(ss)
         .onFormSubmit()
