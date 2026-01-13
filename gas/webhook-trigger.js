@@ -19,10 +19,10 @@
 
 const CONFIG = {
     // Vercel APIのURL（デプロイ後に更新）
-    WEBHOOK_URL: 'https://your-app.vercel.app/api/webhook',
+    WEBHOOK_URL: 'https://notification-management-khaki.vercel.app/api/webhook',
 
     // Webhook認証シークレット（Vercel側と同じ値を設定）
-    WEBHOOK_SECRET: 'your-secret-key',
+    WEBHOOK_SECRET: 'my-secret-key-12345',
 
     // このスプレッドシートのタイプを設定
     // 'consultation' | 'application' | 'workshop'
@@ -32,15 +32,15 @@ const CONFIG = {
     STAFF_LIST_SHEET: 'スタッフリスト',
 
     // Case 1: スタッフChatIDシート名
-    STAFF_CHAT_SHEET: 'スタッフChat',
+    STAFF_CHAT_SHEET: '担当者チャット',
 
     // Case 1: 書き込み先の列（1-indexed）
     STAFF_COLUMN: 9,       // Column I
     VIEWER_URL_COLUMN: 15, // Column O
 
     // Viewer URL 生成用（適当な文字列）
-    VIEWER_URL_SALT: 'your-salt-here',
-    VIEWER_BASE_URL: 'https://your-app.vercel.app'
+    VIEWER_URL_SALT: 'notification-salt-2026',
+    VIEWER_BASE_URL: 'https://notification-management-khaki.vercel.app'
 };
 
 // ========================================
