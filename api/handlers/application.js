@@ -23,7 +23,9 @@ const CASE_NAME = 'Case 2: 本講座申し込み';
  * @param {Object} injectedConfig - Configuration from GAS payload
  */
 export async function handleApplication(data, injectedConfig) {
-    const config = injectedConfig || await getConfig();
+    // Merge: Injected Config (Priority) > Env Vars (Fallback)
+    const envConfig = await getConfig();
+    const config = { ...envConfig, ...injectedConfig };
 
     if (!config) {
         await notifyError({

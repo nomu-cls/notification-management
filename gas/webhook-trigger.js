@@ -340,13 +340,13 @@ function testWebhook() {
             timestamp: new Date().toISOString(),
             rowIndex: 999,
             clientName: 'テスト太郎',
-            dateTime: '2026/1/15(水) 10:00〜12:00',
-            staff: 'テストスタッフ',
-            staffChatworkId: '12345',
+            dateTime: '2026/1/31(土) 10:00〜12:00',
+            staff: '野村',
+            staffChatworkId: 'rid21212759',
             viewerUrl: CONFIG.VIEWER_BASE_URL + '/viewer/test123',
             allFields: {
                 '氏名': 'テスト太郎',
-                '日時': '2026/1/15(水) 10:00〜12:00'
+                '日時': '2026/1/31(土) 10:00〜12:00'
             }
         }
     };

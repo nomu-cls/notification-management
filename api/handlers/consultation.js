@@ -18,8 +18,9 @@ const CASE_NAME = 'Case 1: 個別相談予約';
  * @param {Object} injectedConfig - Configuration from GAS payload
  */
 export async function handleConsultation(data, injectedConfig) {
-    // Use injected config if available, otherwise check Env Vars (legacy/fallback)
-    const config = injectedConfig || await getConfig();
+    // Merge: Injected Config (Priority) > Env Vars (Fallback)
+    const envConfig = await getConfig();
+    const config = { ...envConfig, ...injectedConfig };
 
     if (!config) {
         await notifyError({
