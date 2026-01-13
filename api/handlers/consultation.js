@@ -1,42 +1,22 @@
 /**
- * Case 1: Individual Consultation Booking Handler
+ * Case 1: Individual Consultation Booking Handler (Notification Only)
  * 
- * Matching Logic:
- * 1. Scan "Staff List" sheet using Date/Time and "Certified Consultant" as keys
- * 2. Retrieve "Staff Name (Surname Only)" from matching row
- * 3. Write Surname into Column I (Staff) of booking list
- * 4. Generate and write Viewer URL to Column O
- * 5. Search Chatwork ID by Surname in "Staff Chat" sheet
- * 6. Send immediate notification
+ * GAS-based architecture: Spreadsheet operations are done in GAS.
+ * This handler only sends Chatwork notifications.
  */
 
-import { readSheet, updateCell } from '../lib/sheets.js';
 import { sendToMessage, formatMessage } from '../lib/chatwork.js';
 import { getConfig } from '../lib/firestore.js';
 import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
-import crypto from 'crypto';
 
 const CASE_NAME = 'Case 1: 個別相談予約';
 
 /**
- * Generate unique hashed URL for assignment viewer
- * @param {string} email - Client email
- * @param {string} name - Client name
- * @returns {string} Hashed URL path
+ * Handle consultation booking notification
+ * Receives pre-processed data from GAS (staff already matched, columns written)
+ * @param {Object} data - Data from GAS including matched staff and chatworkId
  */
-function generateViewerUrl(email, name, baseUrl) {
-    const salt = process.env.VIEWER_URL_SALT || 'default-salt';
-    const input = `${salt}:${email || name}:${Date.now()}`;
-    const hash = crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
-    return `${baseUrl}/viewer/${hash}`;
-}
-
-/**
- * Handle individual consultation booking (Direct Webhook Version)
- * Called from /api/webhook/booking
- * @param {Object} data - Normalized booking data
- */
-export async function handleConsultationBooking(data) {
+export async function handleConsultation(data) {
     const config = await getConfig();
 
     if (!config) {
@@ -51,163 +31,75 @@ export async function handleConsultationBooking(data) {
     }
 
     const {
-        spreadsheetId,
-        staffListSheet,
-        bookingListSheet,
-        staffChatSheet,
         chatworkToken,
         roomId,
-        consultationTemplate,
-        staffColumn = 9,      // Column I (1-indexed)
-        viewerUrlColumn = 15, // Column O (1-indexed)
-        viewerBaseUrl = process.env.VERCEL_URL || 'https://your-app.vercel.app'
+        consultationTemplate
     } = config;
 
-    // Step 1: Find matching staff from Staff List
-    let staffList;
-    try {
-        staffList = await readSheet(spreadsheetId, `${staffListSheet}!A:Z`);
-    } catch (error) {
-        await notifyError({
-            caseName: CASE_NAME,
-            errorCategory: error.message.includes('404') ? ErrorCategory.SHEET_NOT_FOUND : ErrorCategory.UNKNOWN,
-            errorMessage: `Failed to read Staff List sheet: ${error.message}`,
-            rowNumber: data.rowIndex,
-            payload: { spreadsheetId, staffListSheet }
-        });
-        throw error;
-    }
+    // GAS has already done:
+    // - Staff matching
+    // - Column I (Staff) write
+    // - Column O (Viewer URL) write
+    // - Chatwork ID lookup
 
-    const headers = staffList[0];
+    const {
+        staff,
+        staffChatworkId,
+        clientName,
+        dateTime,
+        viewerUrl,
+        allFields
+    } = data;
 
-    // Find column indices
-    const dateTimeColIdx = headers.findIndex(h => h.includes('日時') || h.includes('DateTime'));
-    const certColIdx = headers.findIndex(h => h.includes('資格') || h.includes('Certified'));
-    const staffNameColIdx = headers.findIndex(h => h.includes('名前') || h.includes('Name'));
-
-    let matchedStaff = null;
-
-    for (let i = 1; i < staffList.length; i++) {
-        const row = staffList[i];
-        // Match by date/time and certification
-        if (row[dateTimeColIdx] === data.dateTime &&
-            row[certColIdx]?.includes(data.certifiedConsultant)) {
-            matchedStaff = row[staffNameColIdx];
-            break;
-        }
-    }
-
-    if (!matchedStaff) {
-        // Case 1 specific: Staff match failed
+    // Validate required data from GAS
+    if (!staff || staff === '未マッチング') {
         await notifyError({
             caseName: CASE_NAME,
             errorCategory: ErrorCategory.STAFF_MATCH_FAILED,
-            errorMessage: `No matching staff found for DateTime: "${data.dateTime}", Consultant: "${data.certifiedConsultant}"`,
+            errorMessage: `Staff matching failed in GAS for DateTime: "${dateTime}"`,
             rowNumber: data.rowIndex,
             payload: data
         });
-        console.warn('No matching staff found for:', data.dateTime, data.certifiedConsultant);
-        return { matched: false };
+        return { matched: false, notified: false };
     }
 
-    // Step 2: Write staff name to Column I (Staff)
-    if (data.rowIndex) {
-        try {
-            await updateCell(spreadsheetId, bookingListSheet, parseInt(data.rowIndex), staffColumn, matchedStaff);
-        } catch (error) {
-            await notifyError({
-                caseName: CASE_NAME,
-                errorCategory: ErrorCategory.UNKNOWN,
-                errorMessage: `Failed to write staff name to Column I: ${error.message}`,
-                rowNumber: data.rowIndex,
-                payload: { matchedStaff, staffColumn }
-            });
-            // Continue anyway - notification is more important
-        }
-    }
-
-    // Step 3: Generate and write Viewer URL to Column O
-    let viewerUrl = null;
-    if (data.rowIndex) {
-        try {
-            viewerUrl = generateViewerUrl(data.email, data.clientName, viewerBaseUrl);
-            await updateCell(spreadsheetId, bookingListSheet, parseInt(data.rowIndex), viewerUrlColumn, viewerUrl);
-        } catch (error) {
-            await notifyError({
-                caseName: CASE_NAME,
-                errorCategory: ErrorCategory.UNKNOWN,
-                errorMessage: `Failed to write Viewer URL to Column O: ${error.message}`,
-                rowNumber: data.rowIndex,
-                payload: { viewerUrl, viewerUrlColumn }
-            });
-            // Continue anyway
-        }
-    }
-
-    // Step 4: Get Chatwork ID from Staff Chat sheet
-    let staffChatList;
-    try {
-        staffChatList = await readSheet(spreadsheetId, `${staffChatSheet}!A:B`);
-    } catch (error) {
-        await notifyError({
-            caseName: CASE_NAME,
-            errorCategory: ErrorCategory.SHEET_NOT_FOUND,
-            errorMessage: `Failed to read Staff Chat sheet: ${error.message}`,
-            rowNumber: data.rowIndex,
-            payload: { spreadsheetId, staffChatSheet }
-        });
-        throw error;
-    }
-
-    let chatworkAccountId = null;
-    for (const row of staffChatList) {
-        if (row[0] === matchedStaff) {
-            chatworkAccountId = row[1];
-            break;
-        }
-    }
-
-    if (!chatworkAccountId) {
-        // Case 1 specific: Chatwork ID missing
+    if (!staffChatworkId) {
         await notifyError({
             caseName: CASE_NAME,
             errorCategory: ErrorCategory.CHATWORK_ID_MISSING,
-            errorMessage: `No Chatwork ID found for staff: "${matchedStaff}"`,
+            errorMessage: `No Chatwork ID provided for staff: "${staff}"`,
             rowNumber: data.rowIndex,
-            payload: { matchedStaff }
+            payload: { staff }
         });
-        console.warn('No Chatwork ID found for staff:', matchedStaff);
-        return { matched: true, notified: false, staff: matchedStaff, viewerUrl };
+        return { matched: true, notified: false, staff, viewerUrl };
     }
 
-    // Step 5: Send notification
-    const message = formatMessage(consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}', {
-        ...data.allFields,
-        dateTime: data.dateTime,
-        clientName: data.clientName,
-        staff: matchedStaff
-    });
+    // Send notification
+    const message = formatMessage(
+        consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}',
+        {
+            ...allFields,
+            dateTime,
+            clientName,
+            staff
+        }
+    );
 
     try {
-        await sendToMessage(chatworkToken, roomId, chatworkAccountId, matchedStaff, message);
+        await sendToMessage(chatworkToken, roomId, staffChatworkId, staff, message);
     } catch (error) {
         await notifyError({
             caseName: CASE_NAME,
             errorCategory: ErrorCategory.UNKNOWN,
             errorMessage: `Failed to send Chatwork notification: ${error.message}`,
             rowNumber: data.rowIndex,
-            payload: { matchedStaff, roomId }
+            payload: { staff, roomId }
         });
         throw error;
     }
 
-    return { matched: true, notified: true, staff: matchedStaff, viewerUrl };
+    return { matched: true, notified: true, staff, viewerUrl };
 }
 
-/**
- * Legacy handler for GAS webhook (for backward compatibility)
- * @deprecated Use handleConsultationBooking instead
- */
-export async function handleConsultation(data) {
-    return handleConsultationBooking(data);
-}
+// Alias for backward compatibility
+export { handleConsultation as handleConsultationBooking };
