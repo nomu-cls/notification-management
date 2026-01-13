@@ -105,6 +105,73 @@ function parseFirestoreDocument(fields) {
 // ========================================
 
 /**
+ * 外部システムからの Webhook を受け取る関数（Webアプリとしてデプロイが必要）
+ */
+function doPost(e) {
+    try {
+        const postData = JSON.parse(e.postData.contents);
+        Logger.log('Webhook received: ' + JSON.stringify(postData));
+
+        // フォームデータを正規化（予約システムに合わせて調整）
+        const formData = {
+            '氏名': postData.name || postData['氏名'],
+            'メールアドレス': postData.mail || postData['メール'],
+            '電話番号': postData.phone || postData['電話番号'],
+            '日時': postData['スケジュール'] || postData.schedule,
+            '担当者名': postData['担当者名'] || postData.member_name,
+            'zoom': postData.zoom || postData.event_url,
+            'コメント': postData['コメント'] || postData.comment
+        };
+
+        // Firestoreから設定を取得
+        const firestoreConfig = getFirestoreConfig();
+
+        // スタッフマッチング（名前からChatworkIDを検索）
+        let chatworkId = null;
+        const staffName = formData['担当者名'];
+        if (staffName) {
+            const ss = SpreadsheetApp.getActiveSpreadsheet();
+            const chatSheet = ss.getSheetByName(CONFIG.STAFF_CHAT_SHEET);
+            if (chatSheet) {
+                const surname = extractSurname(staffName);
+                const chatData = chatSheet.getDataRange().getValues();
+                const idColIdx = findColumnIndex(chatData[0], ['ChatworkID', 'ID', 'Chatwork']);
+                const nameColIdx = findColumnIndex(chatData[0], ['名前', 'Name', 'スタッフ名']);
+
+                for (let i = 1; i < chatData.length; i++) {
+                    if (chatData[i][nameColIdx] && chatData[i][nameColIdx].toString().includes(surname)) {
+                        chatworkId = chatData[i][idColIdx];
+                        break;
+                    }
+                }
+            }
+        }
+
+        const payload = {
+            type: 'consultation',
+            config: firestoreConfig,
+            data: {
+                timestamp: new Date().toISOString(),
+                clientName: formData['氏名'],
+                dateTime: formData['日時'],
+                staff: formData['担当者名'],
+                staffChatworkId: chatworkId,
+                allFields: formData
+            }
+        };
+
+        const result = sendNotificationRequest(payload);
+        return ContentService.createTextOutput(JSON.stringify({ success: true, result }))
+            .setMimeType(ContentService.MimeType.JSON);
+
+    } catch (error) {
+        Logger.log('Error in doPost: ' + error.toString());
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+}
+
+/**
  * フォーム送信時に呼ばれる関数
  */
 function onFormSubmit(e) {
