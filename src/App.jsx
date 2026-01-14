@@ -572,24 +572,42 @@ function Case2Section({ config, setConfig }) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <label className="block text-sm font-medium text-slate-700">タスク担当者</label>
           <button
             onClick={fetchMembers}
             disabled={isFetching}
-            className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-md transition-all disabled:opacity-50"
+            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-300 transition-all disabled:opacity-50"
           >
-            {isFetching ? '取得中...' : 'メンバー取得'}
+            {isFetching ? '取得中...' : 'Chatworkからメンバー取得'}
           </button>
         </div>
 
+        {/* Manual Input for IDs */}
+        <div className="space-y-1">
+          <p className="text-[10px] text-slate-400 mb-1">
+            担当者のChatwork IDをカンマ区切りで入力してください
+          </p>
+          <input
+            type="text"
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            placeholder="1234567, 9876543"
+            value={(config.taskAssigneeIds || []).join(', ')}
+            onChange={(e) => {
+              const ids = e.target.value.split(',').map(id => id.trim()).filter(id => id !== '');
+              setConfig({ ...config, taskAssigneeIds: ids });
+            }}
+          />
+        </div>
+
         {fetchError && (
-          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{fetchError}</div>
+          <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{fetchError}</div>
         )}
 
         {members.length > 0 && (
           <div className="border border-slate-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">取得済みメンバー</p>
             {members.map(member => (
               <label key={member.id} className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1 rounded">
                 <input
@@ -604,10 +622,6 @@ function Case2Section({ config, setConfig }) {
             ))}
           </div>
         )}
-
-        <div className="text-xs text-slate-500">
-          選択中: {(config.taskAssigneeIds || []).join(', ') || 'なし'}
-        </div>
       </div>
     </section>
   );
