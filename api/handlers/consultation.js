@@ -79,16 +79,33 @@ export async function handleConsultationBooking(data) {
         console.log('Search Indices:', { dateTimeColIdx, consultantColIdx, lookingFor: consultantName });
         console.log('Found Headers:', JSON.stringify(headers));
 
+        // Helper to normalize date strings for comparison
+        const normalize = (val) => {
+            if (!val) return '';
+            return String(val)
+                .trim()
+                .replace(/（/g, '(')
+                .replace(/）/g, ')')
+                .replace(/[～〜~]/g, '-') // Normalize all wavy dashes to hyphen for comparison
+                .replace(/\s/g, '');      // Remove all spaces
+        };
+
+        const targetDateNormalized = normalize(data.dateTime);
+        console.log('Target Date (Normalized):', targetDateNormalized);
+
         if (dateTimeColIdx >= 0 && consultantColIdx >= 0) {
+            // Log first 3 data rows for debugging
+            console.log('Sample Staff List Rows (first 3):', JSON.stringify(staffList.slice(1, 4)));
+
             for (let i = 1; i < staffList.length; i++) {
                 const row = staffList[i];
-                const rowDate = row[dateTimeColIdx] ? String(row[dateTimeColIdx]).trim() : '';
-                const targetDate = String(data.dateTime).trim();
+                const rowDate = row[dateTimeColIdx];
+                const rowDateNormalized = normalize(rowDate);
 
                 // Match by date/time only
-                if (rowDate === targetDate) {
+                if (rowDateNormalized === targetDateNormalized) {
                     matchedStaff = row[consultantColIdx];
-                    console.log(`Matched! Row ${i + 1} for ${rowDate}: Staff = ${matchedStaff}`);
+                    console.log(`Matched! Row ${i + 1} for "${rowDate}" (normalized: "${rowDateNormalized}"): Staff = ${matchedStaff}`);
                     break;
                 }
             }
