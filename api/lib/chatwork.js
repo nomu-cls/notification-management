@@ -54,7 +54,12 @@ export async function sendMessage(token, roomId, message, selfUnread = false) {
  * @param {string} message - Message body (without To tag)
  */
 export async function sendToMessage(token, roomId, accountId, accountName, message) {
-    const body = `[To:${accountId}] ${accountName}さん\n${message}`;
+    // If accountId already contains a Chatwork tag like [To:123], use it as is
+    const toTag = String(accountId).includes('[To:')
+        ? accountId
+        : `[To:${accountId}]${accountName ? ` ${accountName}さん` : ''}`;
+
+    const body = `${toTag}\n${message}`;
     return sendMessage(token, roomId, body);
 }
 
