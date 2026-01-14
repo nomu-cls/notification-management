@@ -60,3 +60,17 @@ const CONFIG = {
 
 ### 「WEBHOOK_SECRET が一致しない」
 → Vercel環境変数 `WEBHOOK_SECRET` とGASの `CONFIG.WEBHOOK_SECRET` を一致させてください。
+
+## 環境変数設定ガイド (Vercel)
+
+Vercel側で以下の環境変数の設定が必要です。
+
+| 変数名 | 説明 | 取得方法・備考 |
+|--------|------|----------------|
+| `ADMIN_CHATWORK_TOKEN` | 管理者用Chatwork APIトークン | Chatwork設定 > API Token から取得 |
+| `CONSULTATION_ROOM_ID` | 個別相談通知用ルームID | ルームURL末尾の数字 (例: `rid123456` または `123456`)<br>※ `rid` は自動的に削除されます |
+| `SPREADSHEET_ID` | 予約管理用スプレッドシートID | URL `/d/` と `/edit` の間の文字列 |
+| `STAFF_LIST_SHEET` | スタッフ一覧シート名 | デフォルト: `担当者一覧` |
+| `BOOKING_LIST_SHEET` | 予約一覧シート名 | デフォルト: `個別相談予約一覧` |
+| `STAFF_CHAT_SHEET` | スタッフChat対応表シート名 | デフォルト: `担当者チャット` |
+
