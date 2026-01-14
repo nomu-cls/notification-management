@@ -1,37 +1,56 @@
 /**
  * Firestore configuration helper for API routes
- * Uses Firebase Admin SDK for server-side access
+ * Uses Firestore REST API (same as frontend) to avoid service account requirements
+ * Service account is only used for Google Sheets access
  */
 
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Initialize Firebase Admin if not already initialized
-function getAdminApp() {
-    if (getApps().length === 0) {
-        const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-        return initializeApp({
-            credential: cert(serviceAccount),
-            projectId: serviceAccount.project_id
-        });
-    }
-    return getApps()[0];
-}
-
-const app = getAdminApp();
-const db = getFirestore(app);
+// Firebase config for 'challengemanage' project (same as frontend)
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'challengemanage';
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyB55BdrbCUKU172fvtcNaqdGtjDIR-fvP4';
 
 /**
- * Get configuration from Firestore
+ * Parse Firestore document fields to plain object
+ */
+function parseFirestoreDocument(fields) {
+    if (!fields) return {};
+
+    const result = {};
+    for (const key in fields) {
+        const field = fields[key];
+        if (field.stringValue !== undefined) {
+            result[key] = field.stringValue;
+        } else if (field.integerValue !== undefined) {
+            result[key] = parseInt(field.integerValue);
+        } else if (field.booleanValue !== undefined) {
+            result[key] = field.booleanValue;
+        } else if (field.arrayValue !== undefined) {
+            result[key] = (field.arrayValue.values || []).map(v => v.stringValue || v.integerValue);
+        } else if (field.mapValue !== undefined) {
+            result[key] = parseFirestoreDocument(field.mapValue.fields);
+        }
+    }
+    return result;
+}
+
+/**
+ * Get configuration from Firestore using REST API
  * @param {string} configId - Configuration document ID (default: 'main')
  * @returns {Promise<Object>} Configuration object
  */
 export async function getConfig(configId = 'main') {
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/notification_config/${configId}?key=${FIREBASE_API_KEY}`;
+
     let config = {};
     try {
-        const doc = await db.collection('notification_config').doc(configId).get();
-        if (doc.exists) {
-            config = doc.data();
+        const response = await fetch(url);
+
+        if (response.ok) {
+            const doc = await response.json();
+            config = parseFirestoreDocument(doc.fields);
+            console.log('Firestore config loaded successfully');
+        } else {
+            const errorText = await response.text();
+            console.warn('Firestore fetch failed:', response.status, errorText);
         }
     } catch (error) {
         console.warn('Failed to fetch config from Firestore:', error.message);
@@ -40,7 +59,7 @@ export async function getConfig(configId = 'main') {
     // Merge/Fallback with Environment Variables
     return {
         ...config,
-        // Spreadsheet Configuration
+        // Spreadsheet Configuration (fallback to env vars if not in Firestore)
         spreadsheetId: config.spreadsheetId || process.env.SPREADSHEET_ID,
         staffListSheet: config.staffListSheet || process.env.STAFF_LIST_SHEET || 'スタッフリスト',
         bookingListSheet: config.bookingListSheet || process.env.BOOKING_LIST_SHEET || '個別相談予約一覧',
@@ -58,12 +77,11 @@ export async function getConfig(configId = 'main') {
 }
 
 /**
- * Save configuration to Firestore
- * @param {Object} config - Configuration object
- * @param {string} configId - Configuration document ID (default: 'main')
+ * Save configuration to Firestore (Not supported in REST API mode without auth)
+ * Use the Admin Dashboard for configuration changes
  */
 export async function saveConfig(config, configId = 'main') {
-    await db.collection('notification_config').doc(configId).set(config, { merge: true });
+    console.warn('saveConfig is not supported in REST API mode. Use the Admin Dashboard.');
 }
 
 /**
