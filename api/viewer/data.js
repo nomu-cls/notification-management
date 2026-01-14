@@ -7,13 +7,13 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { id } = req.query; // email or hash
+    const { id, promotionId } = req.query; // email or hash, and optional promotionId
     if (!id) {
         return res.status(400).json({ error: 'Missing ID' });
     }
 
     try {
-        const config = await getConfig();
+        const config = await getConfig(promotionId);
         const viewerConfig = config.assignmentViewer;
         const salt = process.env.VIEWER_URL_SALT || 'default-salt';
 

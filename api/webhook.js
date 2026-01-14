@@ -1,123 +1,105 @@
-/**
- * Main Webhook Endpoint
- * Receives webhooks from GAS and routes to appropriate handlers
- * 
- * POST /api/webhook
- * Body: { type: 'consultation' | 'application' | 'workshop', data: {...} }
- */
-
-import { handleConsultation } from './handlers/consultation.js';
+import { handleConsultationBooking } from './handlers/consultation.js';
 import { handleUniversalNotification } from './handlers/universal.js';
 import { sendReminders } from './cron/reminder.js';
 import { notifyError, ErrorCategory } from './lib/errorNotify.js';
+import { getConfig, findPromotionBySheetName } from './lib/firestore.js';
 
 export default async function handler(req, res) {
-    // Only allow POST
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Verify webhook secret (optional but recommended)
-    // Support both Header (GAS) and Query Param (External Services/UTAGE)
+    // Verify webhook secret
     const webhookSecret = req.headers['x-webhook-secret'] || req.query.secret;
-
     if (process.env.WEBHOOK_SECRET && webhookSecret !== process.env.WEBHOOK_SECRET) {
         console.warn('Webhook Unauthorized: Secret mismatch or missing');
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    let { type, data, config } = req.body || {};
+    let { type, data, config: injectedConfig, promotionId, sheetName: explicitSheetName } = req.body || {};
 
     // Auto-detect External System (UTAGE) Payload
-    // If 'type' or 'data' is missing, but fields like 'event_schedule' or 'event_member_name' exist, treat as consultation
     if (!type && !data && (req.body.event_schedule || req.body.event_member_name || req.body.schedule || req.body['担当者名'])) {
         console.log('Detected External System Payload (Utage)');
         type = 'consultation';
-
-        // Map external fields to internal structure
-        console.log('UTAGE Payload Keys:', Object.keys(req.body).join(', '));
         data = {
             timestamp: new Date().toISOString(),
-            rowIndex: null, // External system doesn't know row index, handle later if needed
+            rowIndex: null,
             clientName: req.body.name || req.body['氏名'] || req.body['お名前'],
             email: req.body.mail || req.body['メールアドレス'],
-            // Prioritize 'event_schedule' as seen in screenshot
             dateTime: req.body.event_schedule || req.body.schedule || req.body['スケジュール'] || req.body['日時'],
-            // Prioritize 'event_member_name' as seen in screenshot
             staff: req.body.event_member_name || req.body['担当者名'] || req.body.member_name,
             phone: req.body.phone || req.body.tel || req.body['電話番号'],
             zoom: req.body.zoom || req.body.zoom_url || req.body['ZoomURL'],
             allFields: req.body
         };
+        // UTAGE usually doesn't send sheetName, but if it's consultation, we'll try to match by config
     }
 
-    // Validate payload
-    if (!type || !data) {
-        // Log detailed payload for debugging
-        console.error('Invalid Payload received:', JSON.stringify(req.body));
+    const targetSheetName = explicitSheetName || data?.sheetName || (type === 'consultation' ? '個別相談予約一覧' : null);
 
+    // Resolve Promotion Context
+    let resolvedConfig = injectedConfig || null;
+    let resolvedPromotionId = promotionId;
+
+    if (!resolvedConfig) {
+        if (promotionId) {
+            resolvedConfig = await getConfig(promotionId);
+        } else if (targetSheetName) {
+            const match = await findPromotionBySheetName(targetSheetName);
+            if (match) {
+                resolvedConfig = match.config;
+                resolvedPromotionId = match.promotionId;
+                if (match.type === 'universal' && !type) type = 'universal';
+                console.log(`Resolved promotion ${resolvedPromotionId} via sheet name: ${targetSheetName}`);
+            }
+        }
+    }
+
+    // Fallback to legacy config
+    if (!resolvedConfig) {
+        resolvedConfig = await getConfig();
+        resolvedPromotionId = resolvedConfig._promotionId;
+        console.log('Using fallback config (legacy)');
+    }
+
+    if (!type || !data) {
+        console.error('Invalid Payload:', JSON.stringify(req.body));
         await notifyError({
             caseName: 'Webhook Layer',
             errorCategory: ErrorCategory.WEBHOOK_PAYLOAD,
-            errorMessage: 'Missing type or data in request body',
+            errorMessage: 'Missing type or data',
             payload: req.body
         });
-        return res.status(400).json({ error: 'Missing type or data in request body' });
+        return res.status(400).json({ error: 'Missing type or data' });
     }
 
     try {
         let result;
-
         switch (type) {
             case 'consultation':
-                // Case 1: Individual Consultation Booking
-                result = await handleConsultation(data, config);
+                result = await handleConsultationBooking(data, resolvedConfig);
                 break;
-
-            case 'application':
-                // Case 2: Main Course Application
-                result = await handleApplication(data, config);
-                break;
-
-            case 'workshop':
-                // Case 3: Workshop Report
-                result = await handleWorkshop(data, config);
-                break;
-
             case 'universal':
-                // New Universal Handler
-                result = await handleUniversalNotification(data, config);
+                result = await handleUniversalNotification(data, resolvedConfig);
                 break;
-
             case 'reminder':
-                // Case 4: Day-before Reminder (Manual Trigger for Testing)
-                result = await sendReminders();
+                result = await sendReminders(resolvedConfig);
                 break;
-
             default:
-                await notifyError({
-                    caseName: 'Webhook Layer',
-                    errorCategory: ErrorCategory.WEBHOOK_PAYLOAD,
-                    errorMessage: `Unknown webhook type: ${type}`,
-                    payload: data
-                });
-                return res.status(400).json({ error: `Unknown webhook type: ${type}` });
+                throw new Error(`Unknown webhook type: ${type}`);
         }
 
-        return res.status(200).json({ success: true, result });
+        return res.status(200).json({ success: true, promotionId: resolvedPromotionId, result });
 
     } catch (error) {
-        console.error('Webhook handler error:', error);
-
-        // Send error notification to admin
+        console.error('Webhook Error:', error);
         await notifyError({
             caseName: `Webhook: ${type}`,
             errorCategory: ErrorCategory.UNKNOWN,
             errorMessage: error.message,
-            rowNumber: data?.rowIndex,
             payload: data
-        });
-
+        }, resolvedConfig);
         return res.status(500).json({ error: error.message });
     }
 }

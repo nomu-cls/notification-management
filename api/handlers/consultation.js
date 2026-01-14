@@ -35,9 +35,10 @@ function generateViewerUrl(email, name, baseUrl) {
  * Handle individual consultation booking (Direct Webhook Version)
  * Called from /api/webhook/booking
  * @param {Object} data - Normalized booking data
+ * @param {Object} injectedConfig - Config
  */
-export async function handleConsultationBooking(data) {
-    const config = await getConfig();
+export async function handleConsultationBooking(data, injectedConfig = null) {
+    const config = injectedConfig || await getConfig();
 
     if (!config) {
         await notifyError({

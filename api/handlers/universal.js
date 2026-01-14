@@ -9,10 +9,9 @@ const CASE_NAME = 'Universal Notification';
  * @param {Object} data - Webhook data (sheetName, allFields, etc.)
  * @param {Object} injectedConfig - Config
  */
-export async function handleUniversalNotification(data, injectedConfig) {
-    // Merge Config
-    const envConfig = await getConfig();
-    const config = { ...envConfig, ...injectedConfig };
+export async function handleUniversalNotification(data, injectedConfig = null) {
+    // Determine Config
+    const config = injectedConfig || await getConfig();
 
     // Find matching rules for this sheet
     // rules structure: [{ id, sheetName, notifications: [], task: {} }]

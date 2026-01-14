@@ -25,10 +25,13 @@ function AssignmentViewer() {
   useEffect(() => {
     const parts = window.location.pathname.split('/');
     const id = parts[parts.length - 1]; // hash or email
+    const searchParams = new URLSearchParams(window.location.search);
+    const promotionId = searchParams.get('promotionId');
 
     async function fetchData() {
       try {
-        const res = await fetch(`/api/viewer/data?id=${encodeURIComponent(id)}`);
+        const url = `/api/viewer/data?id=${encodeURIComponent(id)}${promotionId ? `&promotionId=${encodeURIComponent(promotionId)}` : ''}`;
+        const res = await fetch(url);
         if (!res.ok) {
           const errData = await res.json();
           throw new Error(errData.error || 'Failed to fetch data');
@@ -581,11 +584,11 @@ export default function App() {
         {/* Sidebar Tabs */}
         <aside className="w-full md:w-64 space-y-2">
           <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Database size={18} />} label="接続設定" />
-          <TabButton active={activeTab === 'case1'} onClick={() => setActiveTab('case1')} icon={<Users size={18} />} label="Case1: 個別相談" />
+          <TabButton active={activeTab === 'case1'} onClick={() => setActiveTab('case1')} icon={<Users size={18} />} label="個別相談" />
           <TabButton active={activeTab === 'custom'} onClick={() => setActiveTab('custom')} icon={<Bell size={18} />} label="カスタム通知設定" />
-          <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="Case4: リマインダー" />
-          <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="Case5: 課題集約" />
-          <TabButton active={activeTab === 'case6'} onClick={() => setActiveTab('case6')} icon={<Calendar size={18} />} label="Case6: 枠生成" />
+          <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="リマインダー" />
+          <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="課題集約" />
+          <TabButton active={activeTab === 'case6'} onClick={() => setActiveTab('case6')} icon={<Calendar size={18} />} label="枠生成" />
           <div className="border-t border-slate-200 my-2" />
           <TabButton active={activeTab === 'manual'} onClick={() => setActiveTab('manual')} icon={<BookOpen size={18} />} label="マニュアル" />
         </aside>
@@ -624,7 +627,7 @@ export default function App() {
           {/* Case 1: Individual Consultation */}
           {activeTab === 'case1' && (
             <section className="space-y-6">
-              <h2 className="text-lg font-semibold border-b pb-2">Case 1: 個別相談予約</h2>
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">個別相談</h2>
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
                 予約データから担当者をマッチングし、Chatworkへ通知を送信します。
               </div>
@@ -828,7 +831,7 @@ export default function App() {
           {/* Case 4: Reminder */}
           {activeTab === 'case4' && (
             <section className="space-y-6">
-              <h2 className="text-lg font-semibold border-b pb-2">Case 4: 前日リマインダー</h2>
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">リマインダー</h2>
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
                 毎日18:00に翌日の予約担当者へリマインドを送信します。
               </div>
@@ -908,7 +911,7 @@ export default function App() {
           {/* Case 6: Time Slot Generator */}
           {activeTab === 'case6' && (
             <section className="space-y-6">
-              <h2 className="text-lg font-semibold border-b pb-2">Case 6: 予約枠生成ツール</h2>
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">枠生成ツール</h2>
               <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg text-sm text-teal-800">
                 指定期間の予約枠リストを生成します。（10:00〜12:00, 13:00〜15:00, 16:00〜18:00, 20:00〜22:00）
               </div>
@@ -1353,7 +1356,7 @@ function Case5Section({ config, setConfig }) {
 
   return (
     <section className="space-y-6">
-      <h2 className="text-lg font-semibold border-b pb-2">Case 5: 課題集約ページ</h2>
+      <h2 className="text-lg font-semibold border-b pb-2 mb-4">課題集約</h2>
       <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
         事前アンケートと課題シートから提出状況を集約し、個別ページを生成します。
       </div>
