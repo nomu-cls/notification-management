@@ -24,6 +24,7 @@ export default function App() {
     staffChatSheet: '',
     chatworkToken: '',
     roomId: '',
+    bookingColumnMapping: [], // Array of template strings for columns [A, B, C...]
     messageTemplate: DEFAULT_TEMPLATE,
     selectedColumns: [],
     taskColumn: '',
@@ -222,6 +223,57 @@ export default function App() {
                   value={config.consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}'}
                   onChange={(e) => setConfig({ ...config, consultationTemplate: e.target.value })}
                 />
+              </div>
+
+              {/* Column Mapping Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-medium text-slate-700">予約一覧シートの列設定</h3>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                  行追加時にセットする値を定義します。<br />
+                  <span className="text-xs">※ UTAGE連携など、外部システムからの登録時に使用されます。</span>
+                </div>
+
+                <div className="space-y-2">
+                  {(config.bookingColumnMapping || []).map((value, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="w-12 text-sm font-medium text-slate-500 text-right">
+                        {String.fromCharCode(65 + idx)}列:
+                      </span>
+                      <input
+                        type="text"
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        placeholder="{field_name}"
+                        value={value}
+                        onChange={(e) => {
+                          const newMapping = [...(config.bookingColumnMapping || [])];
+                          newMapping[idx] = e.target.value;
+                          setConfig({ ...config, bookingColumnMapping: newMapping });
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const newMapping = [...(config.bookingColumnMapping || [])];
+                          newMapping.splice(idx, 1);
+                          setConfig({ ...config, bookingColumnMapping: newMapping });
+                        }}
+                        className="text-slate-400 hover:text-red-500 p-1"
+                        title="削除"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => {
+                      const newMapping = [...(config.bookingColumnMapping || []), ''];
+                      setConfig({ ...config, bookingColumnMapping: newMapping });
+                    }}
+                    className="ml-14 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    + 列を追加
+                  </button>
+                </div>
               </div>
             </section>
           )}

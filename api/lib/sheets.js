@@ -166,3 +166,30 @@ export async function updateCell(spreadsheetId, sheetName, row, col, value) {
     const range = `${sheetName}!${colLetter}${row}`;
     return writeSheet(spreadsheetId, range, [[value]]);
 }
+
+/**
+ * Append a row to a sheet
+ * @param {string} spreadsheetId - Spreadsheet ID
+ * @param {string} range - Sheet name or range (e.g. "Sheet1")
+ * @param {string[]} values - Array of values to append (single row)
+ * @returns {Promise<{updates: {updatedRange: string}}>}
+ */
+export async function appendRow(spreadsheetId, range, values) {
+    const token = await getAccessToken();
+    const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ values: [values] })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Sheets API append error: ${response.status} ${await response.text()}`);
+    }
+
+    return response.json();
+}

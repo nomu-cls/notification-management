@@ -10,7 +10,7 @@
  * 6. Send immediate notification
  */
 
-import { readSheet, updateCell } from '../lib/sheets.js';
+import { readSheet, updateCell, appendRow } from '../lib/sheets.js';
 import { sendMessage, sendToMessage, formatMessage } from '../lib/chatwork.js';
 import { getConfig } from '../lib/firestore.js';
 import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
@@ -58,10 +58,51 @@ export async function handleConsultationBooking(data) {
         chatworkToken,
         roomId,
         consultationTemplate,
+        bookingColumnMapping = [], // New: Column mapping configuration
         staffColumn = 9,      // Column I (1-indexed)
         viewerUrlColumn = 15, // Column O (1-indexed)
         viewerBaseUrl = process.env.VERCEL_URL || 'https://your-app.vercel.app'
     } = config;
+
+    // Step 0: Append row if rowIndex is missing (External Webhook / UTAGE case)
+    if (!data.rowIndex) {
+        if (!bookingColumnMapping || bookingColumnMapping.length === 0) {
+            console.warn('No bookingColumnMapping configured. Skipping row append.');
+        } else {
+            try {
+                // Construct row values based on mapping
+                const rowValues = bookingColumnMapping.map(template => {
+                    return formatMessage(template, {
+                        ...data.allFields,
+                        dateTime: data.dateTime,
+                        clientName: data.clientName
+                    });
+                });
+
+                // Append to spreadsheet
+                const appendResult = await appendRow(spreadsheetId, bookingListSheet, rowValues);
+
+                // Parse new rowIndex from response (e.g., "Sheet1!A10:Z10")
+                if (appendResult.updates && appendResult.updates.updatedRange) {
+                    const range = appendResult.updates.updatedRange;
+                    const match = range.match(/!A(\d+)/) || range.match(/!.*(\d+)/); // Extract row number
+                    if (match && match[1]) {
+                        data.rowIndex = parseInt(match[1]);
+                        console.log('Appended new row at index:', data.rowIndex);
+                    }
+                }
+            } catch (error) {
+                await notifyError({
+                    caseName: CASE_NAME,
+                    errorCategory: ErrorCategory.UNKNOWN,
+                    errorMessage: `Failed to append new row: ${error.message}`,
+                    rowNumber: null,
+                    payload: data
+                });
+                // We proceed even if append fails, though notification might miss row context
+            }
+        }
+    }
 
     // Step 1: Find matching staff from Staff List
     let staffList;
