@@ -24,7 +24,13 @@ function parseFirestoreDocument(fields) {
         } else if (field.booleanValue !== undefined) {
             result[key] = field.booleanValue;
         } else if (field.arrayValue !== undefined) {
-            result[key] = (field.arrayValue.values || []).map(v => v.stringValue || v.integerValue);
+            result[key] = (field.arrayValue.values || []).map(v => {
+                if (v.mapValue) return parseFirestoreDocument(v.mapValue.fields);
+                if (v.stringValue !== undefined) return v.stringValue;
+                if (v.integerValue !== undefined) return parseInt(v.integerValue);
+                if (v.booleanValue !== undefined) return v.booleanValue;
+                return null;
+            }).filter(v => v !== null);
         } else if (field.mapValue !== undefined) {
             result[key] = parseFirestoreDocument(field.mapValue.fields);
         }
