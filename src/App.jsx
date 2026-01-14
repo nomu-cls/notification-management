@@ -344,7 +344,10 @@ export default function App() {
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-800">
                 報告内容を指定のストックルームへ転送します。
               </div>
-              <InputGroup label="報告ルームID" placeholder="123456789" value={config.workshopReportRoom} onChange={(v) => setConfig({ ...config, workshopReportRoom: v })} />
+              <div className="grid gap-4">
+                <InputGroup label="対象シート名" placeholder="報告" value={config.workshopSheetName} onChange={(v) => setConfig({ ...config, workshopSheetName: v })} />
+                <InputGroup label="報告ルームID" placeholder="123456789" value={config.workshopReportRoom} onChange={(v) => setConfig({ ...config, workshopReportRoom: v })} />
+              </div>
             </section>
           )}
 
@@ -539,6 +542,12 @@ function Case2Section({ config, setConfig }) {
       </div>
 
       <div className="grid gap-4">
+        <InputGroup
+          label="対象シート名"
+          placeholder="本講座申込"
+          value={config.applicationSheetName}
+          onChange={(v) => setConfig({ ...config, applicationSheetName: v })}
+        />
         <InputGroup
           label="通知ルームA ID"
           placeholder="123456789"

@@ -16,14 +16,42 @@ const CONFIG = {
     // Vercel Webhook URL
     WEBHOOK_URL: 'https://notification-management-khaki.vercel.app/api/webhook',
 
-    // Sheet name to Case type mapping
-    // Add your sheet names here
-    SHEET_CASES: {
+    // Firestore config endpoint (fetches sheet names from admin panel)
+    CONFIG_URL: 'https://notification-management-khaki.vercel.app/api/config',
+
+    // Fallback sheet mappings (used if config fetch fails)
+    FALLBACK_SHEET_CASES: {
         '本講座申込': 'application',  // Case 2
         '報告': 'workshop',           // Case 3
-        // Add more mappings as needed
     }
 };
+
+/**
+ * Fetch sheet-to-case mappings from Firestore via API
+ */
+function getSheetCaseMappings() {
+    try {
+        const response = UrlFetchApp.fetch(CONFIG.CONFIG_URL, { muteHttpExceptions: true });
+        if (response.getResponseCode() === 200) {
+            const data = JSON.parse(response.getContentText());
+            const mappings = {};
+
+            // Map from admin panel config
+            if (data.applicationSheetName) {
+                mappings[data.applicationSheetName] = 'application';
+            }
+            if (data.workshopSheetName) {
+                mappings[data.workshopSheetName] = 'workshop';
+            }
+
+            // Merge with fallbacks (admin config takes priority)
+            return { ...CONFIG.FALLBACK_SHEET_CASES, ...mappings };
+        }
+    } catch (e) {
+        Logger.log('Failed to fetch config, using fallback: ' + e.message);
+    }
+    return CONFIG.FALLBACK_SHEET_CASES;
+}
 
 /**
  * Trigger function - called when a form is submitted
@@ -34,8 +62,11 @@ function onFormSubmit(e) {
         const sheet = e.range.getSheet();
         const sheetName = sheet.getName();
 
+        // Get sheet mappings (from admin panel or fallback)
+        const sheetCases = getSheetCaseMappings();
+
         // Check if this sheet is configured for notifications
-        const caseType = CONFIG.SHEET_CASES[sheetName];
+        const caseType = sheetCases[sheetName];
         if (!caseType) {
             Logger.log(`Sheet "${sheetName}" is not configured for notifications. Skipping.`);
             return;
