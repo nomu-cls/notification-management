@@ -59,7 +59,7 @@ export async function handleConsultationBooking(data) {
         roomId,
         consultationTemplate,
         bookingColumnMapping = [], // New: Column mapping configuration
-        staffColumn = 9,      // Column I (1-indexed)
+        staffColumn = 8,      // Column H (1-indexed) - User specified "担当者" is at index 7 (0-based)
         viewerUrlColumn = 15, // Column O (1-indexed)
         viewerBaseUrl = process.env.VERCEL_URL || 'https://your-app.vercel.app'
     } = config;

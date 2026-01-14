@@ -24,7 +24,18 @@ export default function App() {
     staffChatSheet: '',
     chatworkToken: '',
     roomId: '',
-    bookingColumnMapping: [], // Array of template strings for columns [A, B, C...]
+    // Default mapping: A=Date, B=Name, C=Kana, D=Mail, E=Phone, F=Fee, G=Consultant, H=Staff(Empty), I=Zoom
+    bookingColumnMapping: [
+      '{dateTime}',
+      '{clientName}',
+      '{allFields.カナ}',
+      '{email}',
+      '{allFields.Phone}',
+      '',
+      '{staff}',
+      '',
+      '{allFields.Zoom}'
+    ],
     messageTemplate: DEFAULT_TEMPLATE,
     selectedColumns: [],
     taskColumn: '',
