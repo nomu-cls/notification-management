@@ -187,8 +187,10 @@ export async function handleConsultationBooking(data) {
     }
 
     // Step 5: Send notification
+    // Step 5: Send notification
     // chatworkAccountId contains the full [To:xxx]Name format from the spreadsheet
-    const message = formatMessage(consultationTemplate || '【個別相談予約】\\n日時：{dateTime}\\nお客様：{clientName}\\n担当：{staff}', {
+    const messageTemplate = consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}';
+    const message = formatMessage(messageTemplate, {
         ...data.allFields,
         dateTime: data.dateTime,
         clientName: data.clientName,
@@ -196,7 +198,7 @@ export async function handleConsultationBooking(data) {
     });
 
     // Build the full message with the [To:xxx] mention from the spreadsheet
-    const fullMessage = `${chatworkAccountId}\\n${message}`;
+    const fullMessage = `${chatworkAccountId}\n${message}`;
 
     try {
         await sendMessage(chatworkToken, roomId, fullMessage);
