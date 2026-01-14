@@ -294,9 +294,20 @@ export default function App() {
     }
   };
 
-  // Delete promotion
+  // Delete promotion (with strict confirmation)
   const deletePromotion = async (promoId) => {
-    if (!confirm('このプロモーションを削除しますか？\nこの操作は取り消せません。')) return;
+    const promoName = promotions.find(p => p.id === promoId)?.name || promoId;
+    const confirmText = prompt(
+      `⚠️ 警告: この操作は取り消せません！\n\nプロモーション「${promoName}」を削除するには、\n下の入力欄に「削除」と入力してください:`
+    );
+
+    if (confirmText !== '削除') {
+      if (confirmText !== null) {
+        alert('削除がキャンセルされました。');
+      }
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'promotions', promoId));
       setPromotions(prev => prev.filter(p => p.id !== promoId));
@@ -308,6 +319,7 @@ export default function App() {
           setCurrentPromotionId(null);
         }
       }
+      alert(`「${promoName}」を削除しました。`);
     } catch (error) {
       alert('削除に失敗しました: ' + error.message);
     }
