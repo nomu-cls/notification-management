@@ -352,20 +352,45 @@ export default function App() {
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
                 予約データから担当者をマッチングし、Chatworkへ通知を送信します。
               </div>
-              <div className="p-3 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-600">
-                <strong>使用可能な埋め込み文字:</strong><br />
-                <code className="bg-slate-200 px-1 rounded">{'{dateTime}'}</code> - 予約日時
-                <code className="bg-slate-200 px-1 rounded">{'{clientName}'}</code> - お客様名
-                <code className="bg-slate-200 px-1 rounded">{'{staff}'}</code> - 担当者名<br />
-                ※ スプレッドシートの列名も <code className="bg-slate-200 px-1 rounded">{'{列名}'}</code> 形式で使用可能
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">通知テンプレート</label>
-                <textarea
-                  className="w-full h-32 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  value={config.consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}'}
-                  onChange={(e) => setConfig({ ...config, consultationTemplate: e.target.value })}
-                />
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">通知テンプレート</label>
+                  <textarea
+                    className="w-full h-48 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={config.consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}'}
+                    onChange={(e) => setConfig({ ...config, consultationTemplate: e.target.value })}
+                  />
+                </div>
+
+                <div className="w-full md:w-64 pt-7">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg h-full">
+                    <h4 className="text-xs font-semibold text-slate-600 mb-3 border-b pb-2">使用可能な埋め込み文字</h4>
+                    <div className="space-y-2 text-xs text-slate-600">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">予約日時</span>
+                        <code className="bg-white px-2 py-1 border rounded w-full block text-center cursor-pointer hover:bg-slate-100" onClick={() => {
+                          setConfig({ ...config, consultationTemplate: (config.consultationTemplate || '') + '{dateTime}' })
+                        }}>{'{dateTime}'}</code>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">お客様名</span>
+                        <code className="bg-white px-2 py-1 border rounded w-full block text-center cursor-pointer hover:bg-slate-100" onClick={() => {
+                          setConfig({ ...config, consultationTemplate: (config.consultationTemplate || '') + '{clientName}' })
+                        }}>{'{clientName}'}</code>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">担当者名</span>
+                        <code className="bg-white px-2 py-1 border rounded w-full block text-center cursor-pointer hover:bg-slate-100" onClick={() => {
+                          setConfig({ ...config, consultationTemplate: (config.consultationTemplate || '') + '{staff}' })
+                        }}>{'{staff}'}</code>
+                      </div>
+                      <div className="pt-2 border-t mt-2">
+                        <p className="mb-1">スプレッドシート列名:</p>
+                        <code className="bg-white px-2 py-1 border rounded w-full block text-center text-[10px]">{'{列名}'}</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Column Mapping Section */}
