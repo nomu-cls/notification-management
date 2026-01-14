@@ -11,7 +11,7 @@
  */
 
 import { readSheet, updateCell } from '../lib/sheets.js';
-import { sendToMessage, formatMessage } from '../lib/chatwork.js';
+import { sendMessage, sendToMessage, formatMessage } from '../lib/chatwork.js';
 import { getConfig } from '../lib/firestore.js';
 import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
 import crypto from 'crypto';
@@ -187,15 +187,19 @@ export async function handleConsultationBooking(data) {
     }
 
     // Step 5: Send notification
-    const message = formatMessage(consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}', {
+    // chatworkAccountId contains the full [To:xxx]Name format from the spreadsheet
+    const message = formatMessage(consultationTemplate || '【個別相談予約】\\n日時：{dateTime}\\nお客様：{clientName}\\n担当：{staff}', {
         ...data.allFields,
         dateTime: data.dateTime,
         clientName: data.clientName,
         staff: matchedStaff
     });
 
+    // Build the full message with the [To:xxx] mention from the spreadsheet
+    const fullMessage = `${chatworkAccountId}\\n${message}`;
+
     try {
-        await sendToMessage(chatworkToken, roomId, chatworkAccountId, matchedStaff, message);
+        await sendMessage(chatworkToken, roomId, fullMessage);
     } catch (error) {
         await notifyError({
             caseName: CASE_NAME,
