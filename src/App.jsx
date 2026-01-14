@@ -238,52 +238,91 @@ export default function App() {
 
               {/* Column Mapping Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-medium text-slate-700">予約一覧シートの列設定</h3>
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                  行追加時にセットする値を定義します。<br />
-                  <span className="text-xs">※ UTAGE連携など、外部システムからの登録時に使用されます。</span>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-slate-700">予約一覧シートの列設定</h3>
+                    <p className="text-xs text-slate-500">UTAGE等からの連携時に、行追加する値を設定します</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!config.spreadsheetId || !config.bookingListSheet) {
+                        alert('スプレッドシートIDとシート名を入力してください');
+                        return;
+                      }
+                      try {
+                        // In dev mode, we can't fetch headers easily without proxy, 
+                        // so we might need to rely on manual entry or deployed env.
+                        // For now we'll match the user's requested layout purely visually if fetch fails
+                        const res = await fetch(`/api/sheets/headers?spreadsheetId=${config.spreadsheetId}&sheetName=${config.bookingListSheet}`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          if (data.headers) {
+                            // Update UI state with headers (we need a local state for headers)
+                            // For simplicity in this iteration, we'll store headers in config or local state
+                            // Let's us a local state in the component if possible, but simpler to just alert for now or use a dedicated state
+                            alert('ヘッダーを取得しました: ' + data.headers.join(', '));
+                            // Ideally we save this to config or state to render
+                            setConfig({ ...config, _headers: data.headers });
+                          }
+                        } else {
+                          throw new Error('Failed to fetch');
+                        }
+                      } catch (e) {
+                        alert('ヘッダー取得に失敗しました (デプロイ後に動作します)');
+                      }
+                    }}
+                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-300 transition-all"
+                  >
+                    シート情報取得
+                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  {(config.bookingColumnMapping || []).map((value, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="w-12 text-sm font-medium text-slate-500 text-right">
-                        {String.fromCharCode(65 + idx)}列:
-                      </span>
-                      <input
-                        type="text"
-                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        placeholder="{field_name}"
-                        value={value}
-                        onChange={(e) => {
-                          const newMapping = [...(config.bookingColumnMapping || [])];
-                          newMapping[idx] = e.target.value;
-                          setConfig({ ...config, bookingColumnMapping: newMapping });
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          const newMapping = [...(config.bookingColumnMapping || [])];
-                          newMapping.splice(idx, 1);
-                          setConfig({ ...config, bookingColumnMapping: newMapping });
-                        }}
-                        className="text-slate-400 hover:text-red-500 p-1"
-                        title="削除"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
+                <div className="flex gap-6">
+                  {/* Left: Column settings */}
+                  <div className="flex-1 space-y-2">
+                    {/* Default to 10 columns (A-J) if mapping is smaller, to match user request */}
+                    {Array.from({ length: Math.max((config.bookingColumnMapping || []).length, 10) }).map((_, idx) => {
+                      const header = config._headers ? config._headers[idx] : null;
+                      const label = header ? `${String.fromCharCode(65 + idx)}列 (${header})` : `${String.fromCharCode(65 + idx)}列`;
 
-                  <button
-                    onClick={() => {
-                      const newMapping = [...(config.bookingColumnMapping || []), ''];
-                      setConfig({ ...config, bookingColumnMapping: newMapping });
-                    }}
-                    className="ml-14 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                  >
-                    + 列を追加
-                  </button>
+                      return (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="w-32 text-sm font-medium text-slate-500 text-right truncate" title={label}>
+                            {label}
+                          </span>
+                          <input
+                            type="text"
+                            className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            placeholder=""
+                            value={(config.bookingColumnMapping || [])[idx] || ''}
+                            onChange={(e) => {
+                              const newMapping = [...(config.bookingColumnMapping || [])];
+                              // Ensure array is long enough
+                              while (newMapping.length <= idx) newMapping.push('');
+                              newMapping[idx] = e.target.value;
+                              setConfig({ ...config, bookingColumnMapping: newMapping });
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right: Replacement Tags Helper */}
+                  <div className="w-64 space-y-3">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                      <h4 className="text-xs font-semibold text-slate-600 mb-2 border-b pb-1">置き換え文字</h4>
+                      <div className="space-y-1 text-xs text-slate-600">
+                        <div className="flex justify-between"><span>日時</span> <code className="bg-white px-1 border rounded">{'{dateTime}'}</code></div>
+                        <div className="flex justify-between"><span>お名前</span> <code className="bg-white px-1 border rounded">{'{clientName}'}</code></div>
+                        <div className="flex justify-between"><span>メール</span> <code className="bg-white px-1 border rounded">{'{email}'}</code></div>
+                        <div className="flex justify-between"><span>担当者</span> <code className="bg-white px-1 border rounded">{'{staff}'}</code></div>
+                        <div className="mt-2 pt-2 border-t font-semibold">UTAGE項目</div>
+                        <div className="flex justify-between"><span>全項目</span> <code className="bg-white px-1 border rounded">{'{allFields.xxx}'}</code></div>
+                        <div className="text-gray-400 text-[10px] mt-1">例: {`{allFields.Phone}`}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
