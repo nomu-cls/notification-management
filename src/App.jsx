@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings, BookOpen } from 'lucide-react';
+import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings, BookOpen, Link } from 'lucide-react';
 import { db } from './lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 
@@ -915,7 +915,7 @@ export default function App() {
 
           {/* Case 5: Assignment Viewer */}
           {activeTab === 'case5' && (
-            <Case5Section config={config} setConfig={setConfig} />
+            <Case5Section config={config} setConfig={setConfig} currentPromotionId={currentPromotionId} />
           )}
 
           {/* Case 6: Time Slot Generator */}
@@ -1291,7 +1291,7 @@ function NotificationRuleCard({ rule, index, config, onUpdate, onDelete, fetchHe
   );
 }
 
-function Case5Section({ config, setConfig }) {
+function Case5Section({ config, setConfig, currentPromotionId }) {
   const [newSheetName, setNewSheetName] = useState('');
 
   const assignments = config.assignmentViewer?.assignments || [];
@@ -1369,6 +1369,33 @@ function Case5Section({ config, setConfig }) {
       <h2 className="text-lg font-semibold border-b pb-2 mb-4">課題集約</h2>
       <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
         事前アンケートと課題シートから提出状況を集約し、個別ページを生成します。
+      </div>
+
+      <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl p-5 space-y-3">
+        <div className="flex items-center gap-2 text-blue-700 font-bold mb-1">
+          <Link size={18} />
+          <span>外部システム（UTAGE・会員サイト等）連携用URL</span>
+        </div>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          メールアドレスを使って直接ページを開くためのURL形式です。リンクボタンなどに設定して活用してください。
+        </p>
+        <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-xs break-all relative group">
+          {window.location.origin}/viewer/<span className="text-blue-400">メールアドレス</span>?promotionId={currentPromotionId}
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/viewer/{email}?promotionId=${currentPromotionId}`;
+              navigator.clipboard.writeText(url);
+              alert('URL形式をコピーしました！メールアドレス部分は各サービスの見込み客変数を指定してください。');
+            }}
+            className="absolute right-2 top-2 p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="コピー"
+          >
+            <Copy size={14} />
+          </button>
+        </div>
+        <p className="text-[10px] text-slate-400">
+          ※ 「メールアドレス」の部分は、UTAGEなら <code>{'{email}'}</code> など、各サービスの差し込み変数に書き換えてください。
+        </p>
       </div>
 
       {/* Assignment Spreadsheet */}
