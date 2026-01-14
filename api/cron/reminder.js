@@ -112,23 +112,28 @@ export async function sendReminders(config) {
         dateColIdx = headers.findIndex(h => h === reminderDateCol);
     }
     if (dateColIdx === -1) {
-        dateColIdx = headers.findIndex(h => h.includes('日付') || h.includes('Date') || h.includes('開催日時') || h.includes('開始日時'));
+        // Broaden search to include "日時" and other common terms
+        dateColIdx = headers.findIndex(h => h && (
+            h.includes('日時') || h.includes('日付') || h.includes('Date') ||
+            h.includes('開催') || h.includes('開始') || h.includes('スケジュール')
+        ));
     }
 
-    const staffColIdx = headers.findIndex(h => h.includes('担当') || h.includes('Staff'));
-    const clientColIdx = headers.findIndex(h => h.includes('名前') || h.includes('Client'));
-    const timeColIdx = headers.findIndex(h => h.includes('時間') || h.includes('Time'));
+    const staffColIdx = headers.findIndex(h => h && (h.includes('担当') || h.includes('Staff') || h.includes('コンサル')));
+    const clientColIdx = headers.findIndex(h => h && (h.includes('名前') || h.includes('氏名') || h.includes('Client')));
+    const timeColIdx = headers.findIndex(h => h && (h.includes('時間') || h.includes('Time')));
 
     if (dateColIdx === -1) {
-        return { sent: 0, error: `Date column not found in ${targetSheetName}.` };
+        console.warn(`Date column not found in ${targetSheetName}. Headers:`, headers);
+        return { sent: 0, error: `日付列が見つかりません。シート名: ${targetSheetName}` };
     }
 
     // Get staff chat mapping
     let staffChatList;
     try {
-        staffChatList = await readSheet(spreadsheetId, `${staffChatSheet}!A:B`);
+        staffChatList = await readSheet(spreadsheetId, `${staffChatSheet}!A:C`); // Catch 3 columns for safe measure
     } catch (error) {
-        return { sent: 0, error: `Staff mapping sheet not found: ${staffChatSheet}` };
+        return { sent: 0, error: `スタッフ対応表が見つかりません: ${staffChatSheet}` };
     }
 
     const staffChatMap = {};
@@ -147,18 +152,29 @@ export async function sendReminders(config) {
         if (!dateRaw) continue;
 
         // Date match logic
-        const normalizedDateStr = dateRaw.replace(/[年月]/g, '/').replace(/日/g, '').trim();
+        // 1. Remove Japanese day of week (e.g. (金))
+        // 2. Replace Year/Month/Date separators
+        // 3. Take only the date part before any time/space
+        const normalizedDateStr = dateRaw
+            .replace(/\(.\)/g, ' ')
+            .replace(/[年月]/g, '/')
+            .replace(/日/g, '')
+            .split(/[ T]/)[0]
+            .trim();
+
         const d = new Date(normalizedDateStr);
-        let isTomorrow = false;
+        let isMatch = false;
 
         if (!isNaN(d.getTime())) {
+            // Handle cases where year is omitted (e.g. "01/16")
             if (d.getFullYear() < 2000) d.setFullYear(targetYear);
+
             if (d.getFullYear() === targetYear && (d.getMonth() + 1) === targetMonth && d.getDate() === targetDate) {
-                isTomorrow = true;
+                isMatch = true;
             }
         }
 
-        if (isTomorrow) {
+        if (isMatch) {
             const staffName = row[staffColIdx];
             const clientName = row[clientColIdx];
             const time = row[timeColIdx];
