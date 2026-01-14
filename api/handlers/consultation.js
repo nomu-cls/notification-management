@@ -75,9 +75,9 @@ export async function handleConsultationBooking(data) {
                 // Construct row values based on mapping
                 const rowValues = bookingColumnMapping.map(template => {
                     return formatMessage(template, {
-                        ...data.allFields,
-                        dateTime: data.dateTime,
-                        clientName: data.clientName
+                        ...data,           // contains email, staff, dateTime, clientName
+                        ...data.allFields, // spread fields for simple {カナ} access
+                        allFields: data.allFields // nested object for {allFields.カナ} access
                     });
                 });
 
