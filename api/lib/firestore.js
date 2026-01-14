@@ -70,6 +70,21 @@ export async function getConfig(configId = 'main') {
         roomId: config.roomId || process.env.CONSULTATION_ROOM_ID,
         consultationTemplate: config.consultationTemplate || process.env.CONSULTATION_TEMPLATE,
 
+        // Column mapping for row append (fallback if not configured or empty)
+        bookingColumnMapping: (config.bookingColumnMapping && config.bookingColumnMapping.length > 0)
+            ? config.bookingColumnMapping
+            : [
+                '{dateTime}',      // A: 日時
+                '{clientName}',    // B: お名前
+                '{allFields.カナ}', // C: カナ
+                '{email}',         // D: メールアドレス
+                '{allFields.Phone}', // E: 携帯電話番号
+                '',                // F: 受講費 (empty)
+                '{staff}',         // G: 認定コンサル
+                '',                // H: 担当者 (filled later by matching)
+                '{allFields.Zoom}' // I: Zoom
+            ],
+
         // Admin Notification
         adminChatworkToken: config.adminChatworkToken || process.env.ADMIN_CHATWORK_TOKEN,
         adminChatworkRoomId: config.adminChatworkRoomId || process.env.ADMIN_ROOM_ID
