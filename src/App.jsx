@@ -294,6 +294,36 @@ export default function App() {
     }
   };
 
+  // Migrate legacy config to new promotion
+  const migrateFromLegacy = async () => {
+    const name = prompt('レガシー設定を新しいプロモーションにコピーします。\nプロモーション名を入力してください:', 'メイン');
+    if (!name) return;
+
+    try {
+      // Load legacy config
+      const legacyDoc = await getDoc(doc(db, 'notification_config', 'main'));
+      if (!legacyDoc.exists()) {
+        alert('レガシー設定が見つかりませんでした。');
+        return;
+      }
+
+      const legacyConfig = legacyDoc.data();
+      const newPromoData = {
+        name: name.trim(),
+        createdAt: new Date().toISOString(),
+        config: legacyConfig
+      };
+
+      const docRef = await addDoc(collection(db, 'promotions'), newPromoData);
+      setPromotions(prev => [...prev, { id: docRef.id, ...newPromoData }]);
+      setShowPromotionMenu(false);
+      switchPromotion(docRef.id);
+      alert(`レガシー設定を「${name}」として復元しました！`);
+    } catch (error) {
+      alert('復元に失敗しました: ' + error.message);
+    }
+  };
+
   // Delete promotion (with strict confirmation)
   const deletePromotion = async (promoId) => {
     const promoName = promotions.find(p => p.id === promoId)?.name || promoId;
@@ -492,8 +522,17 @@ export default function App() {
                         プロモーションがありません
                       </div>
                     )}
+                    <div
+                      className={`flex items-center justify-between px-3 py-2 hover:bg-slate-50 cursor-pointer ${currentPromotionId === '_legacy' ? 'bg-blue-50' : ''
+                        }`}
+                      onClick={() => switchPromotion('_legacy')}
+                    >
+                      <span className={`text-sm truncate ${currentPromotionId === '_legacy' ? 'font-medium text-blue-600' : ''}`}>
+                        レガシー設定
+                      </span>
+                    </div>
                   </div>
-                  <div className="border-t border-slate-100 p-2">
+                  <div className="border-t border-slate-100 p-2 space-y-1">
                     <button
                       onClick={() => { setShowPromotionMenu(false); setDuplicateMode(false); setShowNewPromotionModal(true); }}
                       className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
@@ -505,9 +544,15 @@ export default function App() {
                         onClick={() => { setShowPromotionMenu(false); setDuplicateMode(true); setShowNewPromotionModal(true); }}
                         className="w-full text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md"
                       >
-                        ⎘ 現在の設定を複製
+                        ⏘ 現在の設定を複製
                       </button>
                     )}
+                    <button
+                      onClick={migrateFromLegacy}
+                      className="w-full text-left px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-md"
+                    >
+                      ↻ レガシー設定から復元
+                    </button>
                   </div>
                 </div>
               )}
