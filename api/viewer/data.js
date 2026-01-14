@@ -67,7 +67,7 @@ export default async function handler(req, res) {
         const userName = userRow[nameColIdx] || '不明';
         const userEmail = userRow[emailColIdx];
 
-        // 2. Fetch Assignments Status
+        // 2. Fetch Assignments Status and Details
         const assignmentSsId = viewerConfig.spreadsheetId; // If empty, fallback to questionnaire SS?
         const assignments = viewerConfig.assignments || [];
         const results = [];
@@ -82,24 +82,52 @@ export default async function handler(req, res) {
                 // If email column not found, try name
                 const nIdx = h.findIndex(col => col && (col.includes('氏名') || col.includes('名前')));
 
-                let submitted = false;
+                let submissionRow = null;
                 if (eIdx !== -1) {
-                    submitted = sheetData.some(row => row[eIdx] === userEmail);
+                    submissionRow = sheetData.find(row => row[eIdx] === userEmail);
                 } else if (nIdx !== -1) {
-                    submitted = sheetData.some(row => row[nIdx] === userName);
+                    submissionRow = sheetData.find(row => row[nIdx] === userName);
                 }
 
-                results.push({
-                    name: sheetName,
-                    submitted,
-                    lastUpdated: submitted ? '提出済み' : '未提出'
-                });
+                if (submissionRow) {
+                    // Extract details
+                    const details = [];
+                    h.forEach((header, index) => {
+                        if (!header) return;
+                        // Exclude Name and Email and Timestamp from details
+                        const isName = header.includes('氏名') || header.includes('名前') || header.includes('お名前');
+                        const isEmail = header.includes('メール') || header.toLowerCase().includes('email');
+                        const isTimestamp = header.includes('タイムスタンプ') || header.toLowerCase().includes('timestamp') || header === 'Timestamp';
+
+                        if (!isName && !isEmail && !isTimestamp) {
+                            details.push({
+                                label: header,
+                                value: submissionRow[index] || ''
+                            });
+                        }
+                    });
+
+                    results.push({
+                        name: sheetName,
+                        submitted: true,
+                        lastUpdated: '提出済み',
+                        details: details
+                    });
+                } else {
+                    results.push({
+                        name: sheetName,
+                        submitted: false,
+                        lastUpdated: '未提出',
+                        details: []
+                    });
+                }
             } catch (err) {
                 console.warn(`Failed to fetch assignment sheet ${sheetName}:`, err.message);
                 results.push({
                     name: sheetName,
                     submitted: false,
-                    error: 'シートが読み込めませんでした'
+                    error: 'シートが読み込めませんでした',
+                    details: []
                 });
             }
         }

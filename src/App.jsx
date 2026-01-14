@@ -74,20 +74,37 @@ function AssignmentViewer() {
         <div className="p-6">
           <div className="space-y-3">
             {data.assignments.map((a, i) => (
-              <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${a.submitted ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
-                    <FileText size={20} />
+              <div key={i} className="bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-all overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 bg-white border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${a.submitted ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
+                      <FileText size={20} />
+                    </div>
+                    <span className="font-medium text-slate-700">{a.name}</span>
                   </div>
-                  <span className="font-medium text-slate-700">{a.name}</span>
+                  <div className="flex items-center gap-2">
+                    {a.submitted ? (
+                      <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">提出済み ✓</span>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">未提出</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {a.submitted ? (
-                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">提出済み ✓</span>
-                  ) : (
-                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">未提出</span>
-                  )}
-                </div>
+
+                {/* Details */}
+                {a.submitted && a.details && a.details.length > 0 && (
+                  <div className="p-4 space-y-3 bg-slate-50">
+                    {a.details.map((item, idx) => (
+                      <div key={idx} className="text-sm">
+                        <div className="text-xs text-slate-400 font-medium mb-1">{item.label}</div>
+                        <div className="text-slate-700 bg-white p-2 rounded border border-slate-200 whitespace-pre-wrap">
+                          {item.value || '-'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
 
