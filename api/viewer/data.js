@@ -78,9 +78,10 @@ export default async function handler(req, res) {
             const isName = header.includes('氏名') || header.includes('名前') || header.includes('お名前');
             const isEmail = header.includes('メール') || header.toLowerCase().includes('email');
             const isTimestamp = header.includes('タイムスタンプ') || header.toLowerCase().includes('timestamp') || header === 'Timestamp';
-            const isNo = header.toLowerCase() === 'no' || header === 'No.' || header === 'NO';
+            const isNo = header.trim().toLowerCase() === 'no' || header === 'No.' || header === 'NO' || header.trim().toUpperCase() === 'ID';
 
-            if (!isName && !isEmail && !isTimestamp && !isNo) {
+            // Skip index 0 (No/Timestamp column) as per user request, and other filtered columns
+            if (index !== 0 && !isName && !isEmail && !isTimestamp && !isNo) {
                 masterDetails.push({
                     label: header,
                     value: userRow[index] || ''
@@ -121,9 +122,9 @@ export default async function handler(req, res) {
                         const isName = header.includes('氏名') || header.includes('名前') || header.includes('お名前');
                         const isEmail = header.includes('メール') || header.toLowerCase().includes('email');
                         const isTimestamp = header.includes('タイムスタンプ') || header.toLowerCase().includes('timestamp') || header === 'Timestamp';
-                        const isNo = header.toLowerCase() === 'no' || header === 'No.' || header === 'NO';
+                        const isNo = header.trim().toLowerCase() === 'no' || header === 'No.' || header === 'NO' || header.trim().toUpperCase() === 'ID';
 
-                        if (!isName && !isEmail && !isTimestamp && !isNo) {
+                        if (index !== 0 && !isName && !isEmail && !isTimestamp && !isNo) {
                             details.push({
                                 label: header,
                                 value: submissionRow[index] || ''
