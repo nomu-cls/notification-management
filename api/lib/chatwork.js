@@ -25,7 +25,9 @@ function getHeaders(token) {
  * @returns {Promise<{message_id: string}>}
  */
 export async function sendMessage(token, roomId, message, selfUnread = false) {
-    const url = `${CHATWORK_API_BASE}/rooms/${roomId}/messages`;
+    // Normalize roomId - strip 'rid' prefix if present
+    const normalizedRoomId = String(roomId).replace(/^rid/, '');
+    const url = `${CHATWORK_API_BASE}/rooms/${normalizedRoomId}/messages`;
 
     const response = await fetch(url, {
         method: 'POST',
