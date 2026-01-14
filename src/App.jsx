@@ -464,13 +464,13 @@ function InputGroup({ label, placeholder, value, onChange, type = "text" }) {
 }
 
 // --- Custom Notification Section ---
+// --- Custom Notification Section ---
 function CustomNotificationsSection({ config, setConfig }) {
-  const [rules, setRules] = useState(config.notificationRules || []);
+  const rules = config.notificationRules || [];
 
-  // Sync internal state to config
-  useEffect(() => {
-    setConfig({ ...config, notificationRules: rules });
-  }, [rules]);
+  const updateConfigRules = (newRules) => {
+    setConfig({ ...config, notificationRules: newRules });
+  };
 
   const addRule = () => {
     const newRule = {
@@ -491,17 +491,17 @@ function CustomNotificationsSection({ config, setConfig }) {
         bodyTemplate: ''
       }
     };
-    setRules([...rules, newRule]);
+    updateConfigRules([...rules, newRule]);
   };
 
   const removeRule = (id) => {
     if (confirm('この設定を削除しますか？')) {
-      setRules(rules.filter(r => r.id !== id));
+      updateConfigRules(rules.filter(r => r.id !== id));
     }
   };
 
-  const updateRule = (id, field, value) => {
-    setRules(rules.map(r => r.id === id ? { ...r, [field]: value } : r));
+  const onRuleUpdate = (updatedRule) => {
+    updateConfigRules(rules.map(r => r.id === updatedRule.id ? updatedRule : r));
   };
 
   // Helper to fetch columns for a specific rule
@@ -546,11 +546,11 @@ function CustomNotificationsSection({ config, setConfig }) {
 
         {rules.map((rule, index) => (
           <NotificationRuleCard
-            key={rule.id}
+            key={rule.id || index}
             rule={rule}
             index={index}
             config={config}
-            onUpdate={(updatedRule) => setRules(rules.map(r => r.id === rule.id ? updatedRule : r))}
+            onUpdate={onRuleUpdate}
             onDelete={() => removeRule(rule.id)}
             fetchHeaders={() => fetchHeadersForRule(rule.id, rule.sheetName)}
           />
