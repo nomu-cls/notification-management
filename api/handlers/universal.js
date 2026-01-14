@@ -16,7 +16,7 @@ export async function handleUniversalNotification(data, injectedConfig) {
 
     // Find matching rules for this sheet
     // rules structure: [{ id, sheetName, notifications: [], task: {} }]
-    const rules = config.notificationRules || [];
+    const rules = (config.notificationRules || []).filter(r => r && r.sheetName);
     const matchedRules = rules.filter(r => r.sheetName === data.sheetName);
 
     if (matchedRules.length === 0) {
