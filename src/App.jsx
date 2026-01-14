@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings, BookOpen } from 'lucide-react';
 import { db } from './lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 
 // --- Constants ---
 const DEFAULT_TEMPLATE = "【新着通知】\n項目：{内容}\n担当：{担当者}\nご確認お願いします。";
@@ -186,48 +186,160 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState('');
 
+  // Multi-Promotion Management
+  const [promotions, setPromotions] = useState([]);
+  const [currentPromotionId, setCurrentPromotionId] = useState(null);
+  const [showPromotionMenu, setShowPromotionMenu] = useState(false);
+  const [newPromotionName, setNewPromotionName] = useState('');
+  const [showNewPromotionModal, setShowNewPromotionModal] = useState(false);
+  const [duplicateMode, setDuplicateMode] = useState(false);
+
   // Case 6: Time Slot Generator
   const [slotStartDate, setSlotStartDate] = useState('');
   const [slotEndDate, setSlotEndDate] = useState('');
   const [generatedSlots, setGeneratedSlots] = useState('');
 
-  // Load config from Firestore on mount
+  // Load promotions list and config
   useEffect(() => {
-    async function loadConfig() {
+    async function loadPromotionsAndConfig() {
       try {
-        const docRef = doc(db, 'notification_config', 'main');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          // Sanitize rules on load
-          if (data.notificationRules) {
-            data.notificationRules = data.notificationRules.filter(r => r && r.id);
+        // 1. Fetch all promotions
+        const promoSnapshot = await getDocs(collection(db, 'promotions'));
+        const promoList = promoSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPromotions(promoList);
+
+        // 2. Determine which promotion to load
+        let targetId = null;
+        if (promoList.length > 0) {
+          // Use first promotion or saved preference
+          const savedId = localStorage.getItem('currentPromotionId');
+          targetId = promoList.find(p => p.id === savedId) ? savedId : promoList[0].id;
+        }
+
+        // 3. Load config
+        if (targetId) {
+          setCurrentPromotionId(targetId);
+          const promoDoc = await getDoc(doc(db, 'promotions', targetId));
+          if (promoDoc.exists()) {
+            const data = promoDoc.data().config || promoDoc.data();
+            if (data.notificationRules) {
+              data.notificationRules = data.notificationRules.filter(r => r && r.id);
+            }
+            setConfig(prev => ({ ...prev, ...data }));
           }
-          setConfig(prev => ({ ...prev, ...data }));
+        } else {
+          // Fallback to legacy
+          const legacyDoc = await getDoc(doc(db, 'notification_config', 'main'));
+          if (legacyDoc.exists()) {
+            const data = legacyDoc.data();
+            if (data.notificationRules) {
+              data.notificationRules = data.notificationRules.filter(r => r && r.id);
+            }
+            setConfig(prev => ({ ...prev, ...data }));
+            setCurrentPromotionId('_legacy');
+          }
         }
       } catch (error) {
-        console.error('Failed to load config:', error);
+        console.error('Failed to load:', error);
       } finally {
         setIsLoading(false);
       }
     }
-    loadConfig();
+    loadPromotionsAndConfig();
   }, []);
+
+  // Switch promotion
+  const switchPromotion = async (promoId) => {
+    setIsLoading(true);
+    setShowPromotionMenu(false);
+    try {
+      if (promoId === '_legacy') {
+        const legacyDoc = await getDoc(doc(db, 'notification_config', 'main'));
+        if (legacyDoc.exists()) {
+          setConfig(legacyDoc.data());
+        }
+      } else {
+        const promoDoc = await getDoc(doc(db, 'promotions', promoId));
+        if (promoDoc.exists()) {
+          const data = promoDoc.data().config || promoDoc.data();
+          setConfig(data);
+        }
+      }
+      setCurrentPromotionId(promoId);
+      localStorage.setItem('currentPromotionId', promoId);
+    } catch (error) {
+      console.error('Switch failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Create/Duplicate promotion
+  const createPromotion = async () => {
+    if (!newPromotionName.trim()) return;
+    try {
+      const newPromoData = {
+        name: newPromotionName.trim(),
+        createdAt: new Date().toISOString(),
+        config: duplicateMode ? { ...config } : {}
+      };
+      const docRef = await addDoc(collection(db, 'promotions'), newPromoData);
+      setPromotions(prev => [...prev, { id: docRef.id, ...newPromoData }]);
+      setShowNewPromotionModal(false);
+      setNewPromotionName('');
+      setDuplicateMode(false);
+      switchPromotion(docRef.id);
+    } catch (error) {
+      alert('作成に失敗しました: ' + error.message);
+    }
+  };
+
+  // Delete promotion
+  const deletePromotion = async (promoId) => {
+    if (!confirm('このプロモーションを削除しますか？\nこの操作は取り消せません。')) return;
+    try {
+      await deleteDoc(doc(db, 'promotions', promoId));
+      setPromotions(prev => prev.filter(p => p.id !== promoId));
+      if (currentPromotionId === promoId) {
+        const remaining = promotions.filter(p => p.id !== promoId);
+        if (remaining.length > 0) {
+          switchPromotion(remaining[0].id);
+        } else {
+          setCurrentPromotionId(null);
+        }
+      }
+    } catch (error) {
+      alert('削除に失敗しました: ' + error.message);
+    }
+  };
+
 
   const handleSave = async () => {
     setIsSaving(true);
     setSaveStatus('');
     try {
-      const docRef = doc(db, 'notification_config', 'main');
-      // Sanitize before save
       const configToSave = {
         ...config,
         notificationRules: (config.notificationRules || []).filter(r => r)
       };
-      console.log('Saving keys:', configToSave.notificationRules); // Debug log
-      await setDoc(docRef, configToSave, { merge: true });
+
+      if (currentPromotionId && currentPromotionId !== '_legacy') {
+        // Save to promotions collection
+        const promoRef = doc(db, 'promotions', currentPromotionId);
+        await setDoc(promoRef, {
+          name: promotions.find(p => p.id === currentPromotionId)?.name || currentPromotionId,
+          config: configToSave,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } else {
+        // Legacy fallback
+        const docRef = doc(db, 'notification_config', 'main');
+        await setDoc(docRef, configToSave, { merge: true });
+      }
+
       setSaveStatus('保存しました ✓');
       setTimeout(() => setSaveStatus(''), 3000);
+
     } catch (error) {
       console.error('Save error:', error);
       setSaveStatus('保存に失敗しました');
@@ -276,28 +388,135 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-2 rounded-lg text-white">
-            <Send size={20} />
+      {/* New Promotion Modal */}
+      {showNewPromotionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowNewPromotionModal(false)}>
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4">
+              {duplicateMode ? '現在の設定を複製' : '新規プロモーション作成'}
+            </h3>
+            <input
+              type="text"
+              placeholder="プロモーション名（例: 2026春キャンペーン）"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={newPromotionName}
+              onChange={e => setNewPromotionName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && createPromotion()}
+              autoFocus
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowNewPromotionModal(false); setNewPromotionName(''); setDuplicateMode(false); }}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={createPromotion}
+                disabled={!newPromotionName.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {duplicateMode ? '複製して作成' : '作成'}
+              </button>
+            </div>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">通知管理システム</h1>
         </div>
-        <div className="flex items-center gap-3">
-          {saveStatus && (
-            <span className={`text-sm ${saveStatus.includes('失敗') ? 'text-red-600' : 'text-green-600'}`}>
-              {saveStatus}
-            </span>
-          )}
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-all disabled:opacity-50"
-          >
-            {isSaving ? <span className="animate-spin">◌</span> : <Save size={18} />}
-            設定を保存
-          </button>
+      )}
+
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 px-6 py-4 shadow-sm">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600 p-2 rounded-lg text-white">
+                <Send size={20} />
+              </div>
+              <h1 className="text-xl font-bold tracking-tight">通知管理システム</h1>
+            </div>
+
+            {/* Promotion Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPromotionMenu(!showPromotionMenu)}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors"
+              >
+                <span className="max-w-[200px] truncate">
+                  {currentPromotionId === '_legacy'
+                    ? 'レガシー設定'
+                    : promotions.find(p => p.id === currentPromotionId)?.name || 'プロモーション未選択'}
+                </span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showPromotionMenu && (
+                <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-xl z-50">
+                  <div className="p-2 border-b border-slate-100">
+                    <div className="text-xs text-slate-400 px-2 py-1">プロモーション一覧</div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {promotions.map(p => (
+                      <div
+                        key={p.id}
+                        className={`flex items-center justify-between px-3 py-2 hover:bg-slate-50 cursor-pointer group ${p.id === currentPromotionId ? 'bg-blue-50' : ''
+                          }`}
+                        onClick={() => switchPromotion(p.id)}
+                      >
+                        <span className={`text-sm truncate ${p.id === currentPromotionId ? 'font-medium text-blue-600' : ''}`}>
+                          {p.name || p.id}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deletePromotion(p.id); }}
+                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1"
+                          title="削除"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {promotions.length === 0 && (
+                      <div className="px-3 py-4 text-sm text-slate-400 text-center">
+                        プロモーションがありません
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t border-slate-100 p-2">
+                    <button
+                      onClick={() => { setShowPromotionMenu(false); setDuplicateMode(false); setShowNewPromotionModal(true); }}
+                      className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
+                    >
+                      + 新規作成
+                    </button>
+                    {currentPromotionId && currentPromotionId !== '_legacy' && (
+                      <button
+                        onClick={() => { setShowPromotionMenu(false); setDuplicateMode(true); setShowNewPromotionModal(true); }}
+                        className="w-full text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md"
+                      >
+                        ⎘ 現在の設定を複製
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {saveStatus && (
+              <span className={`text-sm ${saveStatus.includes('失敗') ? 'text-red-600' : 'text-green-600'}`}>
+                {saveStatus}
+              </span>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              {isSaving ? <span className="animate-spin">◌</span> : <Save size={18} />}
+              設定を保存
+            </button>
+          </div>
         </div>
       </header>
 

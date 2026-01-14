@@ -2,6 +2,10 @@
  * Firestore configuration helper for API routes
  * Uses Firestore REST API (same as frontend) to avoid service account requirements
  * Service account is only used for Google Sheets access
+ * 
+ * Supports Multi-Promotion architecture:
+ * - /promotions/{promotionId} - Each promotion has its own config
+ * - /notification_config/main - Legacy fallback for backward compatibility
  */
 
 // Firebase config for 'challengemanage' project (same as frontend)
@@ -33,37 +37,59 @@ function parseFirestoreDocument(fields) {
             }).filter(v => v !== null);
         } else if (field.mapValue !== undefined) {
             result[key] = parseFirestoreDocument(field.mapValue.fields);
+        } else if (field.timestampValue !== undefined) {
+            result[key] = field.timestampValue;
         }
     }
     return result;
 }
 
 /**
- * Get configuration from Firestore using REST API
- * @param {string} configId - Configuration document ID (default: 'main')
- * @returns {Promise<Object>} Configuration object
+ * Get configuration from Firestore
+ * Supports both new promotions collection and legacy notification_config
+ * 
+ * @param {string} promotionId - Promotion ID (default: null for auto-detect)
+ * @returns {Promise<Object>} Configuration object with promotionId
  */
-export async function getConfig(configId = 'main') {
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/notification_config/${configId}?key=${FIREBASE_API_KEY}`;
-
+export async function getConfig(promotionId = null) {
     let config = {};
-    try {
-        const response = await fetch(url);
+    let resolvedPromotionId = promotionId;
 
-        if (response.ok) {
-            const doc = await response.json();
-            config = parseFirestoreDocument(doc.fields);
-            console.log('Firestore config loaded successfully');
-        } else {
-            const errorText = await response.text();
-            console.warn('Firestore fetch failed:', response.status, errorText);
+    // Try promotions collection first
+    if (promotionId) {
+        const promoUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/promotions/${promotionId}?key=${FIREBASE_API_KEY}`;
+        try {
+            const response = await fetch(promoUrl);
+            if (response.ok) {
+                const doc = await response.json();
+                const promoData = parseFirestoreDocument(doc.fields);
+                config = promoData.config || promoData;
+                console.log(`Loaded config from promotions/${promotionId}`);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch promotion config:', error.message);
         }
-    } catch (error) {
-        console.warn('Failed to fetch config from Firestore:', error.message);
+    }
+
+    // Fallback to legacy notification_config/main
+    if (Object.keys(config).length === 0) {
+        const legacyUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/notification_config/main?key=${FIREBASE_API_KEY}`;
+        try {
+            const response = await fetch(legacyUrl);
+            if (response.ok) {
+                const doc = await response.json();
+                config = parseFirestoreDocument(doc.fields);
+                resolvedPromotionId = 'main';
+                console.log('Loaded config from legacy notification_config/main');
+            }
+        } catch (error) {
+            console.warn('Failed to fetch legacy config:', error.message);
+        }
     }
 
     // Merge/Fallback with Environment Variables
     return {
+        _promotionId: resolvedPromotionId,
         ...config,
         // Spreadsheet Configuration (fallback to env vars if not in Firestore)
         spreadsheetId: config.spreadsheetId || process.env.SPREADSHEET_ID,
@@ -99,6 +125,77 @@ export async function getConfig(configId = 'main') {
 }
 
 /**
+ * List all promotions
+ * @returns {Promise<Array>} Array of promotion objects with id, name, createdAt
+ */
+export async function listPromotions() {
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/promotions?key=${FIREBASE_API_KEY}`;
+
+    try {
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            const promotions = (data.documents || []).map(doc => {
+                const id = doc.name.split('/').pop();
+                const fields = parseFirestoreDocument(doc.fields);
+                return {
+                    id,
+                    name: fields.name || id,
+                    createdAt: fields.createdAt || null
+                };
+            });
+            return promotions;
+        }
+    } catch (error) {
+        console.warn('Failed to list promotions:', error.message);
+    }
+
+    return [];
+}
+
+/**
+ * Find promotion by sheet name (for webhook routing)
+ * Searches through all promotions' notificationRules and bookingListSheet
+ * 
+ * @param {string} sheetName - Sheet name to match
+ * @returns {Promise<Object|null>} Matching promotion config or null
+ */
+export async function findPromotionBySheetName(sheetName) {
+    const promotions = await listPromotions();
+
+    for (const promo of promotions) {
+        const config = await getConfig(promo.id);
+
+        // Check Case 1 booking list sheet
+        if (config.bookingListSheet === sheetName) {
+            return { promotionId: promo.id, config, type: 'consultation' };
+        }
+
+        // Check notification rules
+        if (config.notificationRules && Array.isArray(config.notificationRules)) {
+            const matchedRule = config.notificationRules.find(r => r.sheetName === sheetName);
+            if (matchedRule) {
+                return { promotionId: promo.id, config, type: 'universal', ruleId: matchedRule.id };
+            }
+        }
+    }
+
+    // Fallback to legacy config
+    const legacyConfig = await getConfig();
+    if (legacyConfig.bookingListSheet === sheetName) {
+        return { promotionId: 'main', config: legacyConfig, type: 'consultation' };
+    }
+    if (legacyConfig.notificationRules && Array.isArray(legacyConfig.notificationRules)) {
+        const matchedRule = legacyConfig.notificationRules.find(r => r.sheetName === sheetName);
+        if (matchedRule) {
+            return { promotionId: 'main', config: legacyConfig, type: 'universal', ruleId: matchedRule.id };
+        }
+    }
+
+    return null;
+}
+
+/**
  * Save configuration to Firestore (Not supported in REST API mode without auth)
  * Use the Admin Dashboard for configuration changes
  */
@@ -110,8 +207,8 @@ export async function saveConfig(config, configId = 'main') {
  * Get staff chat mapping from config
  * @returns {Promise<Object>} Map of staff surname to Chatwork account ID
  */
-export async function getStaffChatMapping() {
-    const config = await getConfig();
+export async function getStaffChatMapping(promotionId = null) {
+    const config = await getConfig(promotionId);
     return config?.staffChatMapping || {};
 }
 
@@ -119,7 +216,7 @@ export async function getStaffChatMapping() {
  * Get assignment viewer sources configuration
  * @returns {Promise<Object>} Assignment viewer config
  */
-export async function getAssignmentViewerConfig() {
-    const config = await getConfig();
+export async function getAssignmentViewerConfig(promotionId = null) {
+    const config = await getConfig(promotionId);
     return config?.assignmentViewer || null;
 }
