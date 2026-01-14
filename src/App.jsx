@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings } from 'lucide-react';
+import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings, BookOpen } from 'lucide-react';
 import { db } from './lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -310,6 +310,8 @@ export default function App() {
           <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="Case4: リマインダー" />
           <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="Case5: 課題集約" />
           <TabButton active={activeTab === 'case6'} onClick={() => setActiveTab('case6')} icon={<Calendar size={18} />} label="Case6: 枠生成" />
+          <div className="border-t border-slate-200 my-2" />
+          <TabButton active={activeTab === 'manual'} onClick={() => setActiveTab('manual')} icon={<BookOpen size={18} />} label="マニュアル" />
         </aside>
 
         {/* Main Content */}
@@ -684,6 +686,11 @@ export default function App() {
                 </div>
               )}
             </section>
+          )}
+
+          {/* Manual */}
+          {activeTab === 'manual' && (
+            <ManualSection />
           )}
         </main>
       </div>
@@ -1207,3 +1214,159 @@ function Case5Section({ config, setConfig }) {
   );
 }
 
+function ManualSection() {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/manual.md')
+      .then(res => res.text())
+      .then(text => {
+        setContent(text);
+        setLoading(false);
+      })
+      .catch(() => {
+        setContent('マニュアルの読み込みに失敗しました。');
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="space-y-6">
+        <h2 className="text-lg font-semibold border-b pb-2">マニュアル</h2>
+        <div className="animate-pulse text-slate-400">読み込み中...</div>
+      </section>
+    );
+  }
+
+  // Simple markdown-like rendering
+  const renderMarkdown = (md) => {
+    const lines = md.split('\n');
+    const elements = [];
+    let inCodeBlock = false;
+    let codeLines = [];
+    let codeLang = '';
+    let inTable = false;
+    let tableRows = [];
+
+    const processText = (text) => {
+      // Basic inline formatting
+      return text
+        .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 py-0.5 rounded text-sm font-mono">$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-blue-600 hover:underline">$1</a>');
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Code blocks
+      if (line.startsWith('```')) {
+        if (inCodeBlock) {
+          elements.push(
+            <pre key={i} className="bg-slate-800 text-slate-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4">
+              {codeLines.join('\n')}
+            </pre>
+          );
+          codeLines = [];
+          inCodeBlock = false;
+        } else {
+          inCodeBlock = true;
+          codeLang = line.slice(3);
+        }
+        continue;
+      }
+
+      if (inCodeBlock) {
+        codeLines.push(line);
+        continue;
+      }
+
+      // Table handling
+      if (line.startsWith('|')) {
+        if (!inTable) {
+          inTable = true;
+          tableRows = [];
+        }
+        if (!line.includes('---')) {
+          tableRows.push(line.split('|').filter(c => c.trim()).map(c => c.trim()));
+        }
+        continue;
+      } else if (inTable) {
+        // End of table
+        const isHeader = tableRows.length > 0;
+        elements.push(
+          <div key={`table-${i}`} className="overflow-x-auto my-4">
+            <table className="min-w-full border border-slate-200 text-sm">
+              {isHeader && (
+                <thead className="bg-slate-50">
+                  <tr>
+                    {tableRows[0].map((cell, ci) => (
+                      <th key={ci} className="border border-slate-200 px-3 py-2 text-left font-medium">{cell}</th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {tableRows.slice(1).map((row, ri) => (
+                  <tr key={ri} className="hover:bg-slate-50">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className="border border-slate-200 px-3 py-2" dangerouslySetInnerHTML={{ __html: processText(cell) }} />
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableRows = [];
+        inTable = false;
+      }
+
+      // Headers
+      if (line.startsWith('# ')) {
+        elements.push(<h1 key={i} className="text-2xl font-bold text-slate-900 mt-8 mb-4">{line.slice(2)}</h1>);
+      } else if (line.startsWith('## ')) {
+        elements.push(<h2 key={i} className="text-xl font-semibold text-slate-800 mt-6 mb-3 border-b pb-2">{line.slice(3)}</h2>);
+      } else if (line.startsWith('### ')) {
+        elements.push(<h3 key={i} className="text-lg font-medium text-slate-700 mt-4 mb-2">{line.slice(4)}</h3>);
+      } else if (line.startsWith('---')) {
+        elements.push(<hr key={i} className="my-6 border-slate-200" />);
+      } else if (line.startsWith('- ')) {
+        elements.push(
+          <li key={i} className="ml-4 list-disc text-slate-600" dangerouslySetInnerHTML={{ __html: processText(line.slice(2)) }} />
+        );
+      } else if (/^\d+\.\s/.test(line)) {
+        elements.push(
+          <li key={i} className="ml-4 list-decimal text-slate-600" dangerouslySetInnerHTML={{ __html: processText(line.replace(/^\d+\.\s/, '')) }} />
+        );
+      } else if (line.trim() === '') {
+        elements.push(<div key={i} className="h-2" />);
+      } else {
+        elements.push(<p key={i} className="text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: processText(line) }} />);
+      }
+    }
+
+    return elements;
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="flex justify-between items-center border-b pb-2">
+        <h2 className="text-lg font-semibold">マニュアル</h2>
+        <a
+          href="/manual.md"
+          download
+          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+        >
+          <FileText size={14} />
+          ダウンロード
+        </a>
+      </div>
+      <div className="prose prose-slate max-w-none">
+        {renderMarkdown(content)}
+      </div>
+    </section>
+  );
+}

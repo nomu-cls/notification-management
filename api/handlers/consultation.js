@@ -91,12 +91,8 @@ export async function handleConsultationBooking(data) {
         };
 
         const targetDateNormalized = normalize(data.dateTime);
-        console.log('Target Date (Normalized):', targetDateNormalized);
 
         if (dateTimeColIdx >= 0 && consultantColIdx >= 0) {
-            // Log first 3 data rows for debugging
-            console.log('Sample Staff List Rows (first 3):', JSON.stringify(staffList.slice(1, 4)));
-
             for (let i = 1; i < staffList.length; i++) {
                 const row = staffList[i];
                 const rowDate = row[dateTimeColIdx];
@@ -105,12 +101,9 @@ export async function handleConsultationBooking(data) {
                 // Match by date/time only
                 if (rowDateNormalized === targetDateNormalized) {
                     matchedStaff = row[consultantColIdx];
-                    console.log(`Matched! Row ${i + 1} for "${rowDate}" (normalized: "${rowDateNormalized}"): Staff = ${matchedStaff}`);
                     break;
                 }
             }
-        } else {
-            console.warn('Column not found - indices:', { dateTimeColIdx, consultantColIdx }, 'Searching for:', consultantName);
         }
     } catch (error) {
         await notifyError({
