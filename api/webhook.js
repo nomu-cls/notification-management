@@ -29,8 +29,8 @@ export default async function handler(req, res) {
     let { type, data, config } = req.body || {};
 
     // Auto-detect External System (UTAGE) Payload
-    // If 'type' or 'data' is missing, but fields like 'schedule' or '担当者名' exist, treat as consultation
-    if (!type && !data && (req.body.schedule || req.body['担当者名'] || req.body['スケジュール'])) {
+    // If 'type' or 'data' is missing, but fields like 'event_schedule' or 'event_member_name' exist, treat as consultation
+    if (!type && !data && (req.body.event_schedule || req.body.event_member_name || req.body.schedule || req.body['担当者名'])) {
         console.log('Detected External System Payload (Utage)');
         type = 'consultation';
 
@@ -41,10 +41,12 @@ export default async function handler(req, res) {
             rowIndex: null, // External system doesn't know row index, handle later if needed
             clientName: req.body.name || req.body['氏名'] || req.body['お名前'],
             email: req.body.mail || req.body['メールアドレス'],
-            dateTime: req.body.schedule || req.body['スケジュール'] || req.body['日時'],
-            staff: req.body['担当者名'] || req.body.member_name,
-            phone: req.body.tel || req.body['電話番号'] || req.body.phone,
-            zoom: req.body.zoom_url || req.body['ZoomURL'] || req.body.zoom || req.body['Zoom'],
+            // Prioritize 'event_schedule' as seen in screenshot
+            dateTime: req.body.event_schedule || req.body.schedule || req.body['スケジュール'] || req.body['日時'],
+            // Prioritize 'event_member_name' as seen in screenshot
+            staff: req.body.event_member_name || req.body['担当者名'] || req.body.member_name,
+            phone: req.body.phone || req.body.tel || req.body['電話番号'],
+            zoom: req.body.zoom || req.body.zoom_url || req.body['ZoomURL'],
             allFields: req.body
         };
     }
