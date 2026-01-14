@@ -129,8 +129,8 @@ export function formatMessage(template, data) {
         result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
     }
 
-    // Also handle nested keys like {allFields.Phone}
-    result = result.replace(/\{allFields\.(\w+)\}/g, (match, key) => {
+    // Also handle nested keys like {allFields.Phone} or {allFields.カナ}
+    result = result.replace(/\{allFields\.([^}]+)\}/g, (match, key) => {
         return data.allFields?.[key] || '';
     });
 

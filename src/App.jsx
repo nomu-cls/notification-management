@@ -24,8 +24,9 @@ export default function App() {
     staffChatSheet: '',
     chatworkToken: '',
     roomId: '',
-    // Default mapping: A=Date, B=Name, C=Kana, D=Mail, E=Phone, F=Fee, G=Consultant, H=Staff(Empty), I=Zoom
+    // Default mapping: A=No(Empty), B=Date, C=Name, D=Kana, E=Mail, F=Phone, G=Fee, H=Consultant, I=Staff(Empty), J=Zoom
     bookingColumnMapping: [
+      '', // A: No (Empty for ArrayFormula)
       '{dateTime}',
       '{clientName}',
       '{allFields.カナ}',

@@ -74,15 +74,16 @@ export async function getConfig(configId = 'main') {
         bookingColumnMapping: (config.bookingColumnMapping && config.bookingColumnMapping.length > 0)
             ? config.bookingColumnMapping
             : [
-                '{dateTime}',      // A: 日時
-                '{clientName}',    // B: お名前
-                '{allFields.カナ}', // C: カナ
-                '{email}',         // D: メールアドレス
-                '{allFields.Phone}', // E: 携帯電話番号
-                '',                // F: 受講費 (empty)
-                '{staff}',         // G: 認定コンサル
-                '',                // H: 担当者 (filled later by matching)
-                '{allFields.Zoom}' // I: Zoom
+                '',                // A: No (Empty for ArrayFormula)
+                '{dateTime}',      // B: 日時
+                '{clientName}',    // C: お名前
+                '{allFields.カナ}', // D: カナ
+                '{email}',         // E: メールアドレス
+                '{allFields.Phone}', // F: 携帯電話番号
+                '',                // G: 受講費 (empty)
+                '{staff}',         // H: 認定コンサル
+                '',                // I: 担当者 (filled later by matching)
+                '{allFields.Zoom}' // J: Zoom
             ],
 
         // Admin Notification
