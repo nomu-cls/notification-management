@@ -98,6 +98,7 @@ export default async function handler(req, res) {
 
         for (const assignment of assignments) {
             const sheetName = assignment.name;
+            if (sheetName === masterSheetName) continue; // Skip if already included as master questionnaire
             try {
                 const sheetData = await readSheet(assignmentSsId || masterSsId, `${sheetName}!A:Z`);
                 const h = sheetData[0] || [];
