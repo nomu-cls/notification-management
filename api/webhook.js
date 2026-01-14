@@ -18,8 +18,11 @@ export default async function handler(req, res) {
     }
 
     // Verify webhook secret (optional but recommended)
-    const webhookSecret = req.headers['x-webhook-secret'];
+    // Support both Header (GAS) and Query Param (External Services/UTAGE)
+    const webhookSecret = req.headers['x-webhook-secret'] || req.query.secret;
+
     if (process.env.WEBHOOK_SECRET && webhookSecret !== process.env.WEBHOOK_SECRET) {
+        console.warn('Webhook Unauthorized: Secret mismatch or missing');
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
