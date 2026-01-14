@@ -81,8 +81,13 @@ export async function handleConsultationBooking(data) {
                     });
                 });
 
+                console.log('Constructed rowValues:', JSON.stringify(rowValues));
+                console.log('Appending to spreadsheet:', spreadsheetId, 'sheet:', bookingListSheet);
+
                 // Append to spreadsheet
                 const appendResult = await appendRow(spreadsheetId, bookingListSheet, rowValues);
+
+                console.log('appendResult:', JSON.stringify(appendResult));
 
                 // Parse new rowIndex from response (e.g., "Sheet1!A10:Z10")
                 if (appendResult.updates && appendResult.updates.updatedRange) {
