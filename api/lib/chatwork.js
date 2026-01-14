@@ -117,6 +117,30 @@ export async function getRoomMembers(token, roomId) {
 }
 
 /**
+ * Helper to format values (especially GAS dates/times)
+ */
+export function formatValue(val) {
+    if (typeof val !== 'string') return val;
+
+    // Case 1: Date only (ends with 00:00:00)
+    if (val.endsWith(' 00:00:00')) {
+        return val.replace(' 00:00:00', '');
+    }
+
+    // Case 2: Time only (starts with 1899/12/30)
+    if (val.startsWith('1899/12/30 ')) {
+        // e.g. "1899/12/30 10:00:00" -> "10:00"
+        const timePart = val.split(' ')[1];
+        if (timePart) {
+            const [h, m] = timePart.split(':');
+            return `${h}:${m}`;
+        }
+    }
+
+    return val;
+}
+
+/**
  * Format a message using a template and data
  * @param {string} template - Message template with {key} placeholders
  * @param {Object} data - Key-value pairs to substitute
@@ -128,12 +152,14 @@ export function formatMessage(template, data) {
 
     let result = String(template);
     for (const [key, value] of Object.entries(data)) {
-        result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
+        const formattedValue = formatValue(value);
+        result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), formattedValue !== undefined ? formattedValue : '');
     }
 
     // Also handle nested keys like {allFields.Phone} or {allFields.カナ}
     result = result.replace(/\{allFields\.([^}]+)\}/g, (match, key) => {
-        return data.allFields?.[key] || '';
+        const val = data.allFields?.[key];
+        return formatValue(val) || '';
     });
 
     return result;

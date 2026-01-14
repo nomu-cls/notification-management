@@ -1,8 +1,30 @@
-import { sendMessage, createTask, getRoomMembers, formatMessage } from '../lib/chatwork.js';
+import { sendMessage, createTask, getRoomMembers, formatMessage, formatValue } from '../lib/chatwork.js';
 import { getConfig } from '../lib/firestore.js';
 import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
 
 const CASE_NAME = 'Universal Notification';
+
+// Helper to format values (especially GAS dates/times)
+function formatValue(val) {
+    if (typeof val !== 'string') return val;
+
+    // Case 1: Date only (ends with 00:00:00)
+    if (val.endsWith(' 00:00:00')) {
+        return val.replace(' 00:00:00', '');
+    }
+
+    // Case 2: Time only (starts with 1899/12/30)
+    if (val.startsWith('1899/12/30 ')) {
+        // e.g. "1899/12/30 10:00:00" -> "10:00"
+        const timePart = val.split(' ')[1];
+        if (timePart) {
+            const [h, m] = timePart.split(':');
+            return `${h}:${m}`;
+        }
+    }
+
+    return val;
+}
 
 /**
  * Handle universal/custom notifications based on sheet matches
@@ -62,7 +84,7 @@ export async function handleUniversalNotification(data, injectedConfig) {
                         for (const col of notif.columns) {
                             const val = data.allFields[col];
                             if (val !== undefined) {
-                                details += `${col}：${val}\n`;
+                                details += `${col}：${formatValue(val)}\n`;
                             }
                         }
 
