@@ -13,6 +13,9 @@ export default async function handler(req, res) {
         return res.status(200).json({
             applicationSheetName: config.applicationSheetName || '',
             workshopSheetName: config.workshopSheetName || '',
+            notificationRules: config.notificationRules || [],
+            // Deprecated fields kept for backward compatibility if needed, 
+            // but GAS should primarily rely on notificationRules if we fully migrate
             applicationRoomA: config.applicationRoomA || '',
             applicationRoomB: config.applicationRoomB || '',
             workshopReportRoom: config.workshopReportRoom || ''

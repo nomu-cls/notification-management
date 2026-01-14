@@ -2,14 +2,12 @@
  * Sheet2Chatwork Webhook Trigger (Unified Version)
  * 
  * Supports:
- * - Case 1: 個別相談予約 (consultation)
- * - Case 2: 本講座申込 (application)
- * - Case 3: 報告 (workshop)
+ * - Case 1: 個別相談予約 (consultation) - Legacy Fixed Logic
+ * - Universal: Custom Notifications (Dynamic from Admin Config)
  * 
  * Setup:
  * 1. Paste this code into Google Apps Script
  * 2. Set Trigger: onFormSubmit -> From spreadsheet -> On form submit
- * 3. Configure sheet names in the Admin Panel
  */
 
 const CONFIG = {
@@ -22,46 +20,42 @@ const CONFIG = {
     // Config endpoint to fetch sheet mappings from Admin Panel
     CONFIG_URL: 'https://notification-management-khaki.vercel.app/api/config',
 
-    // Default form type (if sheet name doesn't match any config)
-    DEFAULT_FORM_TYPE: 'consultation',
-
-    // Fallback sheet-to-case mappings (used if config fetch fails)
-    // These are overridden by Admin Panel settings
-    FALLBACK_SHEET_CASES: {
-        '個別相談予約一覧': 'consultation', // Case 1
-        '本講座申込': 'application',        // Case 2
-        '報告': 'workshop'                  // Case 3
-    }
+    // Default Fallback
+    DEFAULT_FORM_TYPE: 'consultation'
 };
 
 /**
- * Fetch sheet-to-case mappings from Admin Panel
+ * Fetch configuration and determine form type based on sheet name
  */
-function getSheetCaseMappings() {
+function getFormTypeConfig(sheetName) {
     try {
         const response = UrlFetchApp.fetch(CONFIG.CONFIG_URL, { muteHttpExceptions: true });
         if (response.getResponseCode() === 200) {
             const data = JSON.parse(response.getContentText());
-            const mappings = {};
 
-            // Map from admin panel config
-            if (data.bookingListSheet) {
-                mappings[data.bookingListSheet] = 'consultation';
-            }
-            if (data.applicationSheetName) {
-                mappings[data.applicationSheetName] = 'application';
-            }
-            if (data.workshopSheetName) {
-                mappings[data.workshopSheetName] = 'workshop';
+            // 1. Check for Case 1 (Consultation)
+            if (data.bookingListSheet && data.bookingListSheet === sheetName) {
+                return { type: 'consultation' };
             }
 
-            // Merge with fallbacks (admin config takes priority)
-            return { ...CONFIG.FALLBACK_SHEET_CASES, ...mappings };
+            // 2. Check for Universal Rules (Custom Notifications)
+            if (data.notificationRules && Array.isArray(data.notificationRules)) {
+                const matchedRule = data.notificationRules.find(r => r.sheetName === sheetName);
+                if (matchedRule) {
+                    return { type: 'universal', ruleId: matchedRule.id };
+                }
+            }
+
+            // 3. Fallback for older hardcoded types via deprecated config fields (Optional, kept for safety)
+            if (data.applicationSheetName === sheetName) return { type: 'universal' }; // Migrated to universal
+            if (data.workshopSheetName === sheetName) return { type: 'universal' };    // Migrated to universal
         }
     } catch (e) {
-        Logger.log('Failed to fetch config, using fallback: ' + e.message);
+        Logger.log('Failed to fetch config: ' + e.message);
     }
-    return CONFIG.FALLBACK_SHEET_CASES;
+
+    // Default fallback (e.g. if config fetch fails but we want to try sending anyway)
+    return { type: 'unknown' };
 }
 
 /**
@@ -71,35 +65,49 @@ function onFormSubmit(e) {
     try {
         const sheet = e.source.getActiveSheet();
         const sheetName = sheet.getName();
-        const range = e.range;
+        // Fallback for getting range if e represents a simple object in tests
+        const range = e.range || sheet.getDataRange();
         const rowIndex = range.getRow();
-        const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+        // Get all headers
+        const maxCols = sheet.getLastColumn();
+        if (maxCols === 0) return; // Empty sheet
+        const headers = sheet.getRange(1, 1, 1, maxCols).getValues()[0];
         const values = range.getValues()[0];
 
-        // Get sheet-to-case mappings
-        const sheetCases = getSheetCaseMappings();
-        const formType = sheetCases[sheetName] || CONFIG.DEFAULT_FORM_TYPE;
+        // Determine Type
+        const config = getFormTypeConfig(sheetName);
+        const formType = config.type;
 
         Logger.log(`Sheet: ${sheetName}, FormType: ${formType}`);
+
+        if (formType === 'unknown') {
+            Logger.log('Unknown sheet type, skipping webhook.');
+            return;
+        }
 
         // Convert row data to object
         const formData = {};
         headers.forEach((header, index) => {
             if (header && values[index] !== undefined) {
-                formData[header] = values[index];
+                // Determine value - handle Date objects
+                let val = values[index];
+                if (val instanceof Date) {
+                    val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm:ss');
+                }
+                formData[header] = val;
             }
         });
 
-        // Normalize some fields for easier handling
+        // Normalize Data structure
         const normalizedData = {
             timestamp: new Date().toISOString(),
             rowIndex: rowIndex,
             sheetName: sheetName,
-            // Common mapping
+            // Common mappings for convenience (mostly for Case 1)
             clientName: formData['氏名'] || formData['お名前'] || formData['name'] || formData['Name'],
             email: formData['メールアドレス'] || formData['メール'] || formData['mail'] || formData['Mail'],
             dateTime: formData['日時'] || formData['予約日時'] || formData['schedule'] || formData['スケジュール'],
-            staff: formData['担当者名'] || formData['認定コンサル'] || formData['member_name'],
             allFields: formData
         };
 
@@ -166,15 +174,15 @@ function testConsultation() {
 }
 
 /**
- * Test Function - Case 2: Application
+ * Test Function - Universal (Case 2 Replacement)
  */
-function testApplication() {
+function testUniversalParam() {
     const testPayload = {
-        type: 'application',
+        type: 'universal',
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: 5,
-            sheetName: '本講座申込',
+            sheetName: '本講座申込', // Make sure this matches a rule in Admin Panel
             allFields: {
                 '氏名': 'テスト太郎',
                 '講座名': 'スタートアップ講座',
@@ -184,26 +192,5 @@ function testApplication() {
         }
     };
     sendToVercel(testPayload);
-    Logger.log('Test application sent');
-}
-
-/**
- * Test Function - Case 3: Workshop Report
- */
-function testWorkshop() {
-    const testPayload = {
-        type: 'workshop',
-        data: {
-            timestamp: new Date().toISOString(),
-            rowIndex: 3,
-            sheetName: '報告',
-            allFields: {
-                '報告者': '野村',
-                '内容': '本日のワークショップ完了しました。',
-                '日付': '2026/01/14'
-            }
-        }
-    };
-    sendToVercel(testPayload);
-    Logger.log('Test workshop sent');
+    Logger.log('Test universal notification sent');
 }

@@ -7,8 +7,7 @@
  */
 
 import { handleConsultation } from './handlers/consultation.js';
-import { handleApplication } from './handlers/application.js';
-import { handleWorkshop } from './handlers/workshop.js';
+import { handleUniversalNotification } from './handlers/universal.js';
 import { notifyError, ErrorCategory } from './lib/errorNotify.js';
 
 export default async function handler(req, res) {

@@ -41,22 +41,28 @@ export default function App() {
     selectedColumns: [],
     taskColumn: '',
     assigneeColumn: '',
-    // Case 2
+
+    // Universal Config
+    notificationRules: [],
+
+    // Deprecated but kept for safe transitions or simple fallbacks in legacy code?
     applicationRoomA: '',
     applicationRoomB: '',
-    applicationTemplateA: '【本講座申込通知】\n申込者：{氏名}\n講座：{講座名}\nメール：{メールアドレス}\n電話：{電話番号}',
-    applicationTemplateB: '【本講座申込】\n申込者：{氏名}\n講座：{講座名}\n※ タスクを確認してください',
+    applicationTemplateA: '',
+    applicationTemplateB: '',
     taskAssigneeIds: [],
-    // Case 3
     workshopReportRoom: '',
     workshopTemplate: '',
+
     // Case 4
     reminderTemplate: '',
+
     // Case 5
     assignmentViewer: {
       questionnaire: { ssId: '', sheetName: '' },
       assignments: []
     },
+
     // Admin Error Notification
     adminChatworkToken: '',
     adminChatworkRoomId: ''
@@ -176,8 +182,7 @@ export default function App() {
         <aside className="w-full md:w-64 space-y-2">
           <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Database size={18} />} label="接続設定" />
           <TabButton active={activeTab === 'case1'} onClick={() => setActiveTab('case1')} icon={<Users size={18} />} label="Case1: 個別相談" />
-          <TabButton active={activeTab === 'case2'} onClick={() => setActiveTab('case2')} icon={<Bell size={18} />} label="Case2: 本講座申込" />
-          <TabButton active={activeTab === 'case3'} onClick={() => setActiveTab('case3')} icon={<FileText size={18} />} label="Case3: 報告" />
+          <TabButton active={activeTab === 'custom'} onClick={() => setActiveTab('custom')} icon={<Bell size={18} />} label="カスタム通知設定" />
           <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="Case4: リマインダー" />
           <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="Case5: 課題集約" />
           <TabButton active={activeTab === 'case6'} onClick={() => setActiveTab('case6')} icon={<Calendar size={18} />} label="Case6: 枠生成" />
@@ -251,18 +256,11 @@ export default function App() {
                         return;
                       }
                       try {
-                        // In dev mode, we can't fetch headers easily without proxy, 
-                        // so we might need to rely on manual entry or deployed env.
-                        // For now we'll match the user's requested layout purely visually if fetch fails
                         const res = await fetch(`/api/sheets/headers?spreadsheetId=${config.spreadsheetId}&sheetName=${config.bookingListSheet}`);
                         if (res.ok) {
                           const data = await res.json();
                           if (data.headers) {
-                            // Update UI state with headers (we need a local state for headers)
-                            // For simplicity in this iteration, we'll store headers in config or local state
-                            // Let's us a local state in the component if possible, but simpler to just alert for now or use a dedicated state
                             alert('ヘッダーを取得しました: ' + data.headers.join(', '));
-                            // Ideally we save this to config or state to render
                             setConfig({ ...config, _headers: data.headers });
                           }
                         } else {
@@ -329,26 +327,12 @@ export default function App() {
             </section>
           )}
 
-          {/* Case 2: Main Course Application */}
-          {activeTab === 'case2' && (
-            <Case2Section
+          {/* New Custom Notifications (Was Case 2 & 3) */}
+          {activeTab === 'custom' && (
+            <CustomNotificationsSection
               config={config}
               setConfig={setConfig}
             />
-          )}
-
-          {/* Case 3: Workshop Report */}
-          {activeTab === 'case3' && (
-            <section className="space-y-6">
-              <h2 className="text-lg font-semibold border-b pb-2">Case 3: 報告</h2>
-              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-800">
-                報告内容を指定のストックルームへ転送します。
-              </div>
-              <div className="grid gap-4">
-                <InputGroup label="対象シート名" placeholder="報告" value={config.workshopSheetName} onChange={(v) => setConfig({ ...config, workshopSheetName: v })} />
-                <InputGroup label="報告ルームID" placeholder="123456789" value={config.workshopReportRoom} onChange={(v) => setConfig({ ...config, workshopReportRoom: v })} />
-              </div>
-            </section>
           )}
 
           {/* Case 4: Reminder */}
@@ -468,171 +452,258 @@ function InputGroup({ label, placeholder, value, onChange, type = "text" }) {
   );
 }
 
-function Case2Section({ config, setConfig }) {
-  const [members, setMembers] = useState([]);
-  const [isFetching, setIsFetching] = useState(false);
-  const [fetchError, setFetchError] = useState('');
+// --- Custom Notification Section ---
+function CustomNotificationsSection({ config, setConfig }) {
+  const [rules, setRules] = useState(config.notificationRules || []);
 
-  const fetchMembers = async () => {
-    if (!config.applicationRoomB || !config.chatworkToken) {
-      setFetchError('ルームBのIDとAPIトークンを先に設定してください');
-      return;
-    }
+  // Sync internal state to config
+  useEffect(() => {
+    setConfig({ ...config, notificationRules: rules });
+  }, [rules]);
 
-    // Check if running in dev mode (API routes don't work with vite dev)
-    const isDevMode = window.location.port === '5173' || window.location.port === '5174';
-    if (isDevMode) {
-      setFetchError('ローカル開発ではメンバー取得できません。Vercelデプロイ後に利用するか、手動でIDを入力してください。');
-      return;
-    }
-
-    setIsFetching(true);
-    setFetchError('');
-
-    try {
-      const response = await fetch(
-        `/api/chatwork/members?roomId=${config.applicationRoomB}&token=${config.chatworkToken}`
-      );
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch members');
+  const addRule = () => {
+    const newRule = {
+      id: crypto.randomUUID(),
+      sheetName: '',
+      notifications: [
+        {
+          id: crypto.randomUUID(),
+          roomId: '',
+          template: '',
+          columns: []
+        }
+      ],
+      task: {
+        enabled: false,
+        roomId: '',
+        assigneeIds: [],
+        bodyTemplate: ''
       }
+    };
+    setRules([...rules, newRule]);
+  };
 
-      setMembers(data.members || []);
-    } catch (error) {
-      setFetchError(error.message);
-    } finally {
-      setIsFetching(false);
+  const removeRule = (id) => {
+    if (confirm('この設定を削除しますか？')) {
+      setRules(rules.filter(r => r.id !== id));
     }
   };
 
-  const toggleMember = (memberId) => {
-    const currentIds = config.taskAssigneeIds || [];
-    const memberIdStr = String(memberId);
+  const updateRule = (id, field, value) => {
+    setRules(rules.map(r => r.id === id ? { ...r, [field]: value } : r));
+  };
 
-    if (currentIds.includes(memberIdStr)) {
-      setConfig({
-        ...config,
-        taskAssigneeIds: currentIds.filter(id => id !== memberIdStr)
-      });
-    } else {
-      setConfig({
-        ...config,
-        taskAssigneeIds: [...currentIds, memberIdStr]
-      });
+  // Helper to fetch columns for a specific rule
+  const fetchHeadersForRule = async (ruleId, sheetName) => {
+    if (!config.spreadsheetId || !sheetName) {
+      alert('スプレッドシートIDとシート名が必要です');
+      return [];
+    }
+    try {
+      const res = await fetch(`/api/sheets/headers?spreadsheetId=${config.spreadsheetId}&sheetName=${encodeURIComponent(sheetName)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      return data.headers || [];
+    } catch (e) {
+      alert('列の取得に失敗しました: ' + e.message);
+      return [];
     }
   };
 
   return (
-    <section className="space-y-6">
-      <h2 className="text-lg font-semibold border-b pb-2">Case 2: 本講座申し込み</h2>
-      <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-        申込データを2つのルームに通知し、ルームBにタスクを作成します。
-      </div>
-
-      {/* Placeholder hints */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-        <strong>使用可能な埋め込み文字:</strong><br />
-        <code className="bg-blue-100 px-1 rounded">{'{氏名}'}</code>
-        <code className="bg-blue-100 px-1 rounded ml-2">{'{講座名}'}</code>
-        <code className="bg-blue-100 px-1 rounded ml-2">{'{メールアドレス}'}</code>
-        <code className="bg-blue-100 px-1 rounded ml-2">{'{電話番号}'}</code><br />
-        ※ スプレッドシートの列名をそのまま <code className="bg-blue-100 px-1 rounded">{'{列名}'}</code> 形式で使用できます
-      </div>
-
-      <div className="grid gap-4">
-        <InputGroup
-          label="対象シート名"
-          placeholder="本講座申込"
-          value={config.applicationSheetName}
-          onChange={(v) => setConfig({ ...config, applicationSheetName: v })}
-        />
-        <InputGroup
-          label="通知ルームA ID"
-          placeholder="123456789"
-          value={config.applicationRoomA}
-          onChange={(v) => setConfig({ ...config, applicationRoomA: v })}
-        />
+    <section className="space-y-8">
+      <div className="flex justify-between items-center border-b pb-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">ルームA メッセージテンプレート</label>
-          <textarea
-            className="w-full h-28 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            value={config.applicationTemplateA || ''}
-            onChange={(e) => setConfig({ ...config, applicationTemplateA: e.target.value })}
-            placeholder="【本講座申込通知】&#10;申込者：{氏名}&#10;講座：{講座名}"
-          />
+          <h2 className="text-lg font-semibold">カスタム通知設定</h2>
+          <p className="text-sm text-slate-500">シートごとの通知ルールを自由に作成できます。</p>
         </div>
-
-        <InputGroup
-          label="通知ルームB ID（タスク作成先）"
-          placeholder="987654321"
-          value={config.applicationRoomB}
-          onChange={(v) => setConfig({ ...config, applicationRoomB: v })}
-        />
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">ルームB メッセージテンプレート</label>
-          <textarea
-            className="w-full h-28 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            value={config.applicationTemplateB || ''}
-            onChange={(e) => setConfig({ ...config, applicationTemplateB: e.target.value })}
-            placeholder="【本講座申込】&#10;申込者：{氏名}&#10;※ タスクを確認してください"
-          />
-        </div>
+        <button
+          onClick={addRule}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm flex items-center gap-2"
+        >
+          <Bell size={16} />
+          新しい通知ルールを追加
+        </button>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-slate-700">タスク担当者</label>
-          <button
-            onClick={fetchMembers}
-            disabled={isFetching}
-            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-300 transition-all disabled:opacity-50"
-          >
-            {isFetching ? '取得中...' : 'Chatworkからメンバー取得'}
-          </button>
-        </div>
-
-        {/* Manual Input for IDs */}
-        <div className="space-y-1">
-          <p className="text-[10px] text-slate-400 mb-1">
-            担当者のChatwork IDをカンマ区切りで入力してください
-          </p>
-          <input
-            type="text"
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            placeholder="1234567, 9876543"
-            value={(config.taskAssigneeIds || []).join(', ')}
-            onChange={(e) => {
-              const ids = e.target.value.split(',').map(id => id.trim()).filter(id => id !== '');
-              setConfig({ ...config, taskAssigneeIds: ids });
-            }}
-          />
-        </div>
-
-        {fetchError && (
-          <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{fetchError}</div>
-        )}
-
-        {members.length > 0 && (
-          <div className="border border-slate-200 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">取得済みメンバー</p>
-            {members.map(member => (
-              <label key={member.id} className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1 rounded">
-                <input
-                  type="checkbox"
-                  checked={(config.taskAssigneeIds || []).includes(String(member.id))}
-                  onChange={() => toggleMember(member.id)}
-                  className="w-4 h-4 rounded border-slate-300"
-                />
-                <span className="text-sm">{member.name}</span>
-                <span className="text-xs text-slate-400">ID: {member.id}</span>
-              </label>
-            ))}
+      <div className="space-y-6">
+        {rules.length === 0 && (
+          <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+            <p className="text-slate-400">通知ルールがありません。「新しい通知ルールを追加」ボタンから作成してください。</p>
           </div>
         )}
+
+        {rules.map((rule, index) => (
+          <NotificationRuleCard
+            key={rule.id}
+            rule={rule}
+            index={index}
+            config={config}
+            onUpdate={(updatedRule) => setRules(rules.map(r => r.id === rule.id ? updatedRule : r))}
+            onDelete={() => removeRule(rule.id)}
+            fetchHeaders={() => fetchHeadersForRule(rule.id, rule.sheetName)}
+          />
+        ))}
       </div>
     </section>
+  );
+}
+
+function NotificationRuleCard({ rule, index, config, onUpdate, onDelete, fetchHeaders }) {
+  const [headers, setHeaders] = useState([]);
+  const [isFetching, setIsFetching] = useState(false);
+
+  const handleFetchHeaders = async () => {
+    setIsFetching(true);
+    const cols = await fetchHeaders();
+    if (cols) setHeaders(cols);
+    setIsFetching(false);
+  };
+
+  const updateTask = (field, value) => {
+    onUpdate({ ...rule, task: { ...rule.task, [field]: value } });
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+        <h3 className="font-semibold text-slate-700">Rule #{index + 1}</h3>
+        <button onClick={onDelete} className="text-red-500 hover:text-red-700 text-xs">削除</button>
+      </div>
+
+      <div className="p-4 space-y-6">
+        {/* Trigger Sheet */}
+        <div className="grid gap-4">
+          <InputGroup
+            label="対象シート名 (トリガー)"
+            placeholder="例: 本講座申込 / 日報"
+            value={rule.sheetName}
+            onChange={(v) => onUpdate({ ...rule, sheetName: v })}
+          />
+        </div>
+
+        {/* Notifications Loop (Only 1 supported initially for simplicity UI, but data structure allows array) */}
+        <div className="border-t pt-4">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
+              <Send size={16} /> 通知メッセージ設定
+            </h4>
+            <button
+              onClick={handleFetchHeaders}
+              disabled={!rule.sheetName || isFetching}
+              className="text-xs bg-slate-100 border border-slate-300 px-2 py-1 rounded"
+            >
+              {isFetching ? '...' : '列情報を取得'}
+            </button>
+          </div>
+
+          <div className="space-y-2 mb-4 bg-slate-50 p-2 rounded text-xs">
+            {headers.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {headers.map(h => (
+                  <label key={h} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={rule.notifications[0]?.columns?.includes(h) || false}
+                      onChange={(e) => {
+                        const currentCols = rule.notifications[0]?.columns || [];
+                        const newCols = e.target.checked
+                          ? [...currentCols, h]
+                          : currentCols.filter(c => c !== h);
+
+                        const newNotifs = [...rule.notifications];
+                        newNotifs[0] = { ...newNotifs[0], columns: newCols };
+                        onUpdate({ ...rule, notifications: newNotifs });
+                      }}
+                    />
+                    {h}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <span className="text-slate-400">「列情報を取得」を押すと、通知に含める列を選択できます</span>
+            )}
+          </div>
+
+          <div className="grid gap-3">
+            <InputGroup
+              label="通知先ルームID"
+              placeholder="12345678"
+              value={rule.notifications[0]?.roomId || ''}
+              onChange={(v) => {
+                const newNotifs = [...rule.notifications];
+                newNotifs[0] = { ...newNotifs[0], roomId: v };
+                onUpdate({ ...rule, notifications: newNotifs });
+              }}
+            />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">テンプレート</label>
+              <textarea
+                className="w-full h-24 p-2 text-sm border border-slate-300 rounded"
+                placeholder="メッセージ本文 ({列名}で埋め込み可)"
+                value={rule.notifications[0]?.template || ''}
+                onChange={(e) => {
+                  const newNotifs = [...rule.notifications];
+                  newNotifs[0] = { ...newNotifs[0], template: e.target.value };
+                  onUpdate({ ...rule, notifications: newNotifs });
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Task Settings */}
+        <div className="border-t pt-4">
+          <div className="flex items-center gap-3 mb-4">
+            <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
+              <CheckSquare size={16} /> タスク自動作成
+            </h4>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={rule.task?.enabled || false}
+                onChange={(e) => updateTask('enabled', e.target.checked)}
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          {rule.task?.enabled && (
+            <div className="space-y-4 pl-4 border-l-2 border-blue-100">
+              <InputGroup
+                label="タスク作成ルームID (空欄なら通知先と同じ)"
+                placeholder="指定する場合のみ入力"
+                value={rule.task.roomId}
+                onChange={(v) => updateTask('roomId', v)}
+              />
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">担当者ID (カンマ区切り)</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                  placeholder="11111, 22222"
+                  value={(rule.task.assigneeIds || []).join(', ')}
+                  onChange={(e) => updateTask('assigneeIds', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">タスク内容</label>
+                <textarea
+                  className="w-full h-20 p-2 text-sm border border-slate-300 rounded"
+                  value={rule.task.bodyTemplate || ''}
+                  onChange={(e) => updateTask('bodyTemplate', e.target.value)}
+                  placeholder="タスクの詳細内容 ({列名}使用可)"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
   );
 }
 
@@ -779,7 +850,7 @@ function Case5Section({ config, setConfig }) {
 
       {/* Summary */}
       <div className="text-xs text-slate-500 border-t pt-3">
-        登録済み課題シート: {assignments.length}件
+        Viewer URL: <code>/viewer/[hash|email]</code>
       </div>
     </section>
   );
