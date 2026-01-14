@@ -109,8 +109,9 @@ export default function App() {
       // Sanitize before save
       const configToSave = {
         ...config,
-        notificationRules: (config.notificationRules || []).filter(r => r && r.id)
+        notificationRules: (config.notificationRules || []).filter(r => r)
       };
+      console.log('Saving keys:', configToSave.notificationRules); // Debug log
       await setDoc(docRef, configToSave, { merge: true });
       setSaveStatus('保存しました ✓');
       setTimeout(() => setSaveStatus(''), 3000);
@@ -473,11 +474,11 @@ function CustomNotificationsSection({ config, setConfig }) {
 
   const addRule = () => {
     const newRule = {
-      id: crypto.randomUUID(),
+      id: Date.now().toString() + Math.random().toString().slice(2),
       sheetName: '',
       notifications: [
         {
-          id: crypto.randomUUID(),
+          id: Date.now().toString() + Math.random().toString().slice(2) + '_n',
           roomId: '',
           template: '',
           columns: []
