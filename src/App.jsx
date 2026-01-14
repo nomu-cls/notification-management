@@ -85,7 +85,12 @@ export default function App() {
         const docRef = doc(db, 'notification_config', 'main');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setConfig(prev => ({ ...prev, ...docSnap.data() }));
+          const data = docSnap.data();
+          // Sanitize rules on load
+          if (data.notificationRules) {
+            data.notificationRules = data.notificationRules.filter(r => r && r.id);
+          }
+          setConfig(prev => ({ ...prev, ...data }));
         }
       } catch (error) {
         console.error('Failed to load config:', error);
@@ -101,7 +106,12 @@ export default function App() {
     setSaveStatus('');
     try {
       const docRef = doc(db, 'notification_config', 'main');
-      await setDoc(docRef, config, { merge: true });
+      // Sanitize before save
+      const configToSave = {
+        ...config,
+        notificationRules: (config.notificationRules || []).filter(r => r && r.id)
+      };
+      await setDoc(docRef, configToSave, { merge: true });
       setSaveStatus('保存しました ✓');
       setTimeout(() => setSaveStatus(''), 3000);
     } catch (error) {
