@@ -446,6 +446,73 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* Webhook Mapping Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-slate-700">Webhookパラメータ設定</h3>
+                    <p className="text-xs text-slate-500">外部システム(UTAGE等)のキー名を内部キーに紐付けます</p>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-500 mb-1">
+                    <div>外部システムキー (入力)</div>
+                    <div>内部キー (固定)</div>
+                  </div>
+
+                  {/* Name Mapping */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="例: name, お名前"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.webhookMapping?.clientName || ''}
+                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, clientName: e.target.value } })}
+                    />
+                    <div className="text-sm text-slate-700">お名前 (clientName)</div>
+                  </div>
+
+                  {/* Email Mapping */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="例: email, メールアドレス"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.webhookMapping?.email || ''}
+                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, email: e.target.value } })}
+                    />
+                    <div className="text-sm text-slate-700">メールアドレス (email)</div>
+                  </div>
+
+                  {/* DateTime Mapping */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="例: schedule, 日時"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.webhookMapping?.dateTime || ''}
+                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, dateTime: e.target.value } })}
+                    />
+                    <div className="text-sm text-slate-700">予約日時 (dateTime)</div>
+                  </div>
+
+                  {/* Staff Mapping */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="例: member_name, 担当者"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.webhookMapping?.staff || ''}
+                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, staff: e.target.value } })}
+                    />
+                    <div className="text-sm text-slate-700">担当者/認定コンサル (staff)</div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 mt-2">※ カンマ区切りで複数のキーを指定可能です。</p>
+                </div>
+              </div>
             </section>
           )}
 

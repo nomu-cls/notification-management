@@ -64,6 +64,47 @@ export async function handleConsultationBooking(data) {
         viewerBaseUrl = process.env.VERCEL_URL || 'https://your-app.vercel.app'
     } = config;
 
+    // Step 1: Find matching staff from Staff List
+    let matchedStaff = null;
+    let consultantName = data.staff; // "認定コンサル" from webhook
+
+    try {
+        const staffList = await readSheet(spreadsheetId, `${staffListSheet}!A:Z`);
+        const headers = staffList[0];
+
+        // Find column indices
+        // Column 0: 日時, Column 1+: 認定コンサル1, 認定コンサル2, etc.
+        const dateTimeColIdx = headers.findIndex(h => h && (h.includes('日時') || h.includes('DateTime')));
+        const consultantColIdx = headers.findIndex(h => h && h === consultantName);
+
+        if (dateTimeColIdx >= 0 && consultantColIdx >= 0) {
+            for (let i = 1; i < staffList.length; i++) {
+                const row = staffList[i];
+                // Match by date/time only, then get staff name from the consultant column
+                if (row[dateTimeColIdx] === data.dateTime) {
+                    matchedStaff = row[consultantColIdx];
+                    break;
+                }
+            }
+        } else {
+            console.warn('Column not found - dateTimeColIdx:', dateTimeColIdx, 'consultantColIdx:', consultantColIdx, 'Looking for:', consultantName);
+        }
+    } catch (error) {
+        await notifyError({
+            caseName: CASE_NAME,
+            errorCategory: error.message.includes('404') ? ErrorCategory.SHEET_NOT_FOUND : ErrorCategory.UNKNOWN,
+            errorMessage: `Failed to read Staff List sheet: ${error.message}`,
+            rowNumber: data.rowIndex,
+            payload: { spreadsheetId, staffListSheet }
+        });
+        // Non-critical: Proceed without match, row append still needed
+    }
+
+    if (!matchedStaff) {
+        console.warn('No matching staff found for:', data.dateTime, consultantName);
+        // Don't fail here, we still want to append the row
+    }
+
     // Step 0: Append row if rowIndex is missing (External Webhook / UTAGE case)
     if (!data.rowIndex) {
         console.log('rowIndex missing, attempting to append row using mapping:', JSON.stringify(bookingColumnMapping));
@@ -75,7 +116,10 @@ export async function handleConsultationBooking(data) {
                 // Construct row values based on mapping
                 const rowValues = bookingColumnMapping.map(template => {
                     return formatMessage(template, {
-                        ...data,           // contains email, staff, dateTime, clientName
+                        ...data,           // contains email, staff (Consultant!), dateTime, clientName
+                        consultant: consultantName, // Explicit alias for clarity
+                        matchedStaff: matchedStaff || '', // The looked up staff name
+                        staff: matchedStaff || consultantName, // Backwards combatibility: if matched, use it; else fallback
                         ...data.allFields, // spread fields for simple {カナ} access
                         allFields: data.allFields // nested object for {allFields.カナ} access
                     });
@@ -106,77 +150,35 @@ export async function handleConsultationBooking(data) {
                     rowNumber: null,
                     payload: data
                 });
-                // We proceed even if append fails, though notification might miss row context
+                // We proceed even if append fails
             }
         }
     }
 
-    // Step 1: Find matching staff from Staff List
-    let staffList;
-    try {
-        staffList = await readSheet(spreadsheetId, `${staffListSheet}!A:Z`);
-    } catch (error) {
-        await notifyError({
-            caseName: CASE_NAME,
-            errorCategory: error.message.includes('404') ? ErrorCategory.SHEET_NOT_FOUND : ErrorCategory.UNKNOWN,
-            errorMessage: `Failed to read Staff List sheet: ${error.message}`,
-            rowNumber: data.rowIndex,
-            payload: { spreadsheetId, staffListSheet }
-        });
-        throw error;
-    }
-
-    const headers = staffList[0];
-
-    // Find column indices
-    // Column 0: 日時, Column 1+: 認定コンサル1, 認定コンサル2, etc.
-    const dateTimeColIdx = headers.findIndex(h => h && (h.includes('日時') || h.includes('DateTime')));
-
-    // The consultant columns are named like "認定コンサル1", "認定コンサル2"
-    // data.staff contains the column name (e.g., "認定コンサル1")
-    const consultantColIdx = headers.findIndex(h => h && h === data.staff);
-
-    let matchedStaff = null;
-
-    if (dateTimeColIdx >= 0 && consultantColIdx >= 0) {
-        for (let i = 1; i < staffList.length; i++) {
-            const row = staffList[i];
-            // Match by date/time only, then get staff name from the consultant column
-            if (row[dateTimeColIdx] === data.dateTime) {
-                matchedStaff = row[consultantColIdx];
-                break;
-            }
-        }
-    } else {
-        console.warn('Column not found - dateTimeColIdx:', dateTimeColIdx, 'consultantColIdx:', consultantColIdx, 'Looking for:', data.staff);
-    }
-
+    // Stop if staff matching failed previously and we couldn't send notification
     if (!matchedStaff) {
-        // Case 1 specific: Staff match failed
         await notifyError({
             caseName: CASE_NAME,
             errorCategory: ErrorCategory.STAFF_MATCH_FAILED,
-            errorMessage: `No matching staff found for DateTime: "${data.dateTime}", Consultant: "${data.certifiedConsultant}"`,
+            errorMessage: `No matching staff found for DateTime: "${data.dateTime}", Consultant: "${consultantName}"`,
             rowNumber: data.rowIndex,
             payload: data
         });
-        console.warn('No matching staff found for:', data.dateTime, data.certifiedConsultant);
         return { matched: false };
     }
 
-    // Step 2: Write staff name to Column I (Staff)
+    // Step 2: Write staff name to Column I (Staff) - Legacy update fallback if row was already there
+    /* 
+       Optimization: If data.rowIndex came from specific append above, the staff name is already in the row
+       IF the mapping used {matchedStaff}. If the row existed before (GAS case), we update.
+       Since we support both, we do explicit update if needed, but for append case checking mapping serves.
+       However, to be safe and ensure "Staff Column" is definitely updated with matched staff:
+    */
     if (data.rowIndex) {
         try {
             await updateCell(spreadsheetId, bookingListSheet, parseInt(data.rowIndex), staffColumn, matchedStaff);
         } catch (error) {
-            await notifyError({
-                caseName: CASE_NAME,
-                errorCategory: ErrorCategory.UNKNOWN,
-                errorMessage: `Failed to write staff name to Column I: ${error.message}`,
-                rowNumber: data.rowIndex,
-                payload: { matchedStaff, staffColumn }
-            });
-            // Continue anyway - notification is more important
+            console.warn(`Failed to update staff name cell: ${error.message}`);
         }
     }
 
@@ -195,7 +197,6 @@ export async function handleConsultationBooking(data) {
                 rowNumber: data.rowIndex,
                 payload: { viewerUrl, viewerUrlColumn }
             });
-            // Continue anyway
         }
     }
 
@@ -236,13 +237,14 @@ export async function handleConsultationBooking(data) {
     }
 
     // Step 5: Send notification
-    // Step 5: Send notification
     // chatworkAccountId contains the full [To:xxx]Name format from the spreadsheet
-    const messageTemplate = consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{staff}';
+    const messageTemplate = consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{matchedStaff}';
     const message = formatMessage(messageTemplate, {
         ...data.allFields,
         dateTime: data.dateTime,
         clientName: data.clientName,
+        consultant: consultantName,
+        matchedStaff: matchedStaff,
         staff: matchedStaff
     });
 
