@@ -73,21 +73,27 @@ export async function handleConsultationBooking(data) {
         const headers = staffList[0];
 
         // Find column indices
-        // Column 0: 日時, Column 1+: 認定コンサル1, 認定コンサル2, etc.
-        const dateTimeColIdx = headers.findIndex(h => h && (h.includes('日時') || h.includes('DateTime')));
-        const consultantColIdx = headers.findIndex(h => h && h === consultantName);
+        const dateTimeColIdx = headers.findIndex(h => h && (String(h).trim().includes('日時') || String(h).trim().includes('DateTime')));
+        const consultantColIdx = headers.findIndex(h => h && String(h).trim() === String(consultantName).trim());
+
+        console.log('Search Indices:', { dateTimeColIdx, consultantColIdx, lookingFor: consultantName });
+        console.log('Found Headers:', JSON.stringify(headers));
 
         if (dateTimeColIdx >= 0 && consultantColIdx >= 0) {
             for (let i = 1; i < staffList.length; i++) {
                 const row = staffList[i];
-                // Match by date/time only, then get staff name from the consultant column
-                if (row[dateTimeColIdx] === data.dateTime) {
+                const rowDate = row[dateTimeColIdx] ? String(row[dateTimeColIdx]).trim() : '';
+                const targetDate = String(data.dateTime).trim();
+
+                // Match by date/time only
+                if (rowDate === targetDate) {
                     matchedStaff = row[consultantColIdx];
+                    console.log(`Matched! Row ${i + 1} for ${rowDate}: Staff = ${matchedStaff}`);
                     break;
                 }
             }
         } else {
-            console.warn('Column not found - dateTimeColIdx:', dateTimeColIdx, 'consultantColIdx:', consultantColIdx, 'Looking for:', consultantName);
+            console.warn('Column not found - indices:', { dateTimeColIdx, consultantColIdx }, 'Searching for:', consultantName);
         }
     } catch (error) {
         await notifyError({
