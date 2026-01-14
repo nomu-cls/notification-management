@@ -75,6 +75,11 @@ export default async function handler(req, res) {
                 result = await handleWorkshop(data, config);
                 break;
 
+            case 'universal':
+                // New Universal Handler
+                result = await handleUniversalNotification(data, config);
+                break;
+
             default:
                 await notifyError({
                     caseName: 'Webhook Layer',
