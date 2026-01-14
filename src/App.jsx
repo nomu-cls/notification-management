@@ -976,6 +976,35 @@ function Case5Section({ config, setConfig }) {
       <div className="text-xs text-slate-500 border-t pt-3">
         Viewer URL: <code>/viewer/[hash|email]</code>
       </div>
+
+      {/* Operation Test */}
+      <div className="border-t pt-4 mt-4">
+        <h3 className="font-medium text-slate-700 mb-2">🔍 動作テスト</h3>
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">確認用メールアドレス</label>
+            <input
+              type="text"
+              placeholder="user@example.com"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm"
+              id="test-email-input"
+            />
+          </div>
+          <button
+            onClick={() => {
+              const email = document.getElementById('test-email-input').value;
+              if (email) {
+                window.open(`/viewer/${email}`, '_blank');
+              } else {
+                alert('メールアドレスを入力してください');
+              }
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm transition-all"
+          >
+            ページを確認
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
