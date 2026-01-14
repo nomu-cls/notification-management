@@ -43,6 +43,8 @@ export default async function handler(req, res) {
             email: req.body.mail || req.body['メールアドレス'],
             dateTime: req.body.schedule || req.body['スケジュール'] || req.body['日時'],
             staff: req.body['担当者名'] || req.body.member_name,
+            phone: req.body.tel || req.body['電話番号'] || req.body.phone,
+            zoom: req.body.zoom_url || req.body['ZoomURL'] || req.body.zoom || req.body['Zoom'],
             allFields: req.body
         };
     }

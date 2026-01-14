@@ -510,6 +510,30 @@ export default function App() {
                     <div className="text-sm text-slate-700">担当者/認定コンサル (staff)</div>
                   </div>
 
+                  {/* Zoom Mapping */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="例: zoom_url, ZoomURL"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.webhookMapping?.zoom || ''}
+                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, zoom: e.target.value } })}
+                    />
+                    <div className="text-sm text-slate-700">ZoomURL (zoom)</div>
+                  </div>
+
+                  {/* Phone Mapping */}
+                  <div className="grid grid-cols-2 gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="例: tel, 電話番号, phone"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.webhookMapping?.phone || ''}
+                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, phone: e.target.value } })}
+                    />
+                    <div className="text-sm text-slate-700">電話番号 (phone)</div>
+                  </div>
+
                   <p className="text-[10px] text-slate-400 mt-2">※ カンマ区切りで複数のキーを指定可能です。</p>
                 </div>
               </div>
