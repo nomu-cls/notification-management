@@ -307,6 +307,7 @@ export default function App() {
           <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Database size={18} />} label="接続設定" />
           <TabButton active={activeTab === 'case1'} onClick={() => setActiveTab('case1')} icon={<Users size={18} />} label="Case1: 個別相談" />
           <TabButton active={activeTab === 'case2'} onClick={() => setActiveTab('case2')} icon={<FileText size={18} />} label="Case2: 本講座申込" />
+          <TabButton active={activeTab === 'case3'} onClick={() => setActiveTab('case3')} icon={<FileText size={18} />} label="Case3: ワークショップ" />
           <TabButton active={activeTab === 'custom'} onClick={() => setActiveTab('custom')} icon={<Bell size={18} />} label="カスタム通知設定" />
           <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="Case4: リマインダー" />
           <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="Case5: 課題集約" />
@@ -518,6 +519,36 @@ export default function App() {
           {/* Case 2: Main Course Application */}
           {activeTab === 'case2' && (
             <Case2Section config={config} setConfig={setConfig} />
+          )}
+
+          {/* Case 3: Workshop Report */}
+          {activeTab === 'case3' && (
+            <section className="space-y-6">
+              <h2 className="text-lg font-semibold border-b pb-2">Case 3: ワークショップ報告</h2>
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
+                ワークショップ等の報告を受け取り、指定されたチャットへ通知（ストック）します。
+              </div>
+
+              <div className="space-y-4">
+                <InputGroup
+                  label="通知先ルームID"
+                  placeholder="123456789"
+                  value={config.workshopReportRoom || ''}
+                  onChange={(v) => setConfig({ ...config, workshopReportRoom: v })}
+                />
+
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-slate-700">報告テンプレート (任意)</label>
+                  <textarea
+                    className="w-full h-32 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    value={config.workshopTemplate || ''}
+                    onChange={(e) => setConfig({ ...config, workshopTemplate: e.target.value })}
+                    placeholder="（空欄の場合はデフォルトフォーマットを使用）"
+                  />
+                  <p className="text-xs text-slate-500">※ 入力されたすべての項目がテンプレートの下に自動追記されます。</p>
+                </div>
+              </div>
+            </section>
           )}
 
           {/* New Custom Notifications (Was Case 2 & 3) */}
