@@ -59,8 +59,8 @@ function AssignmentViewer() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
         <div className="bg-gradient-to-br from-indigo-600 to-blue-500 p-8 text-white relative">
           <div className="relative z-10">
             <h1 className="text-2xl font-bold mb-1">{data.userName} 様</h1>
@@ -94,15 +94,17 @@ function AssignmentViewer() {
 
                 {/* Details */}
                 {a.submitted && a.details && a.details.length > 0 && (
-                  <div className="p-4 space-y-3 bg-slate-50">
-                    {a.details.map((item, idx) => (
-                      <div key={idx} className="text-sm">
-                        <div className="text-xs text-slate-400 font-medium mb-1">{item.label}</div>
-                        <div className="text-slate-700 bg-white p-2 rounded border border-slate-200 whitespace-pre-wrap">
-                          {item.value || '-'}
+                  <div className="p-4 bg-slate-50">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {a.details.map((item, idx) => (
+                        <div key={idx} className="text-sm">
+                          <div className="text-xs text-slate-400 font-medium mb-1 truncate" title={item.label}>{item.label}</div>
+                          <div className="text-slate-700 bg-white p-2 rounded border border-slate-200 whitespace-pre-wrap min-h-[2.5rem]">
+                            {item.value || '-'}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -995,36 +997,36 @@ function Case5Section({ config, setConfig }) {
         事前アンケートと課題シートから提出状況を集約し、個別ページを生成します。
       </div>
 
-      {/* Questionnaire */}
-      <div className="space-y-3">
-        <h3 className="font-medium text-slate-700">📋 事前アンケート</h3>
-        <div className="grid grid-cols-2 gap-4">
+      {/* Assignment Spreadsheet */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <div className="space-y-3">
+          <h3 className="font-medium text-slate-700">📋 事前アンケート</h3>
+          <div className="grid grid-cols-1 gap-2">
+            <InputGroup
+              label="スプレッドシートID"
+              placeholder="1abc1234567890..."
+              value={config.assignmentViewer?.questionnaire?.ssId || ''}
+              onChange={(v) => updateQuestionnaire('ssId', v)}
+            />
+            <InputGroup
+              label="シート名"
+              placeholder="事前アンケート"
+              value={config.assignmentViewer?.questionnaire?.sheetName || ''}
+              onChange={(v) => updateQuestionnaire('sheetName', v)}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-medium text-slate-700">📝 課題一覧</h3>
           <InputGroup
             label="スプレッドシートID"
             placeholder="1abc1234567890..."
-            value={config.assignmentViewer?.questionnaire?.ssId || ''}
-            onChange={(v) => updateQuestionnaire('ssId', v)}
+            value={spreadsheetId}
+            onChange={updateSpreadsheetId}
           />
-          <InputGroup
-            label="シート名"
-            placeholder="事前アンケート"
-            value={config.assignmentViewer?.questionnaire?.sheetName || ''}
-            onChange={(v) => updateQuestionnaire('sheetName', v)}
-          />
+          <p className="text-xs text-slate-500">※ 課題シートが含まれるスプレッドシート</p>
         </div>
-        <p className="text-xs text-slate-500">※ 受講者の氏名・メールアドレスを含むマスターシート</p>
-      </div>
-
-      {/* Assignment Spreadsheet */}
-      <div className="space-y-3">
-        <h3 className="font-medium text-slate-700">📝 課題一覧</h3>
-        <InputGroup
-          label="スプレッドシートID"
-          placeholder="1abc1234567890..."
-          value={spreadsheetId}
-          onChange={updateSpreadsheetId}
-        />
-        <p className="text-xs text-slate-500">※ 課題シートが含まれるスプレッドシート</p>
       </div>
 
       {/* Assignment Sheets */}
