@@ -604,6 +604,7 @@ export default function App() {
                 <InputGroup label="スタッフ一覧シート名" placeholder="スタッフ一覧" value={config.staffListSheet} onChange={(v) => setConfig({ ...config, staffListSheet: v })} />
                 <InputGroup label="予約一覧シート名" placeholder="個別相談予約一覧" value={config.bookingListSheet} onChange={(v) => setConfig({ ...config, bookingListSheet: v })} />
                 <InputGroup label="スタッフChat対応表シート名" placeholder="スタッフChat" value={config.staffChatSheet} onChange={(v) => setConfig({ ...config, staffChatSheet: v })} />
+                <InputGroup label="Webhook Secret (テスト用)" placeholder="Vercelの環境変数と同じ値を入力" value={config.webhookSecret} onChange={(v) => setConfig({ ...config, webhookSecret: v })} />
               </div>
 
 
@@ -883,13 +884,17 @@ export default function App() {
                   onClick={async () => {
                     if (!confirm('明日の予約リマインド通知を今すぐテスト実行しますか？\n（指定されたチャットへ通知が送信されます）')) return;
                     try {
-                      const res = await fetch('/api/webhook?type=reminder', {
+                      const res = await fetch(`/api/webhook?type=reminder${currentPromotionId ? `&promotionId=${currentPromotionId}` : ''}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'reminder', data: {} })
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'x-webhook-secret': config.webhookSecret
+                        },
+                        body: JSON.stringify({ type: 'reminder', data: { promotionId: currentPromotionId } })
                       });
                       if (res.ok) alert('テスト実行リクエストを送信しました。チャットを確認してください。');
-                      else alert('送信に失敗しました。認証設定等を確認してください。');
+                      else if (res.status === 401) alert('認証に失敗しました。接続設定のWebhook Secretが正しいか確認してください。');
+                      else alert('送信に失敗しました。設定等を確認してください。');
                     } catch (e) {
                       alert('エラーが発生しました。');
                     }
