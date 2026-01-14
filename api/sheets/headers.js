@@ -1,5 +1,4 @@
-import { readSheet } from './lib/sheets.js';
-import { getConfig } from './lib/firestore.js';
+import { readSheet } from '../lib/sheets.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
