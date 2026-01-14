@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users } from 'lucide-react';
+import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown } from 'lucide-react';
 import { db } from './lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -949,6 +949,22 @@ function Case5Section({ config, setConfig }) {
     });
   };
 
+  const moveAssignment = (index, direction) => {
+    const updatedAssignments = [...assignments];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= assignments.length) return;
+
+    [updatedAssignments[index], updatedAssignments[newIndex]] = [updatedAssignments[newIndex], updatedAssignments[index]];
+
+    setConfig({
+      ...config,
+      assignmentViewer: {
+        ...config.assignmentViewer,
+        assignments: updatedAssignments
+      }
+    });
+  };
+
   const updateSpreadsheetId = (value) => {
     setConfig({
       ...config,
@@ -1020,12 +1036,30 @@ function Case5Section({ config, setConfig }) {
         ) : (
           <div className="space-y-2">
             {assignments.map((assignment, idx) => (
-              <div key={assignment.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div key={assignment.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg group">
                 <span className="text-sm font-medium text-slate-600 w-6">{idx + 1}.</span>
                 <span className="flex-1 text-sm font-medium">{assignment.name}</span>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => moveAssignment(idx, -1)}
+                    disabled={idx === 0}
+                    className="p-1 hover:bg-slate-200 rounded text-slate-500 disabled:opacity-30"
+                    title="上に移動"
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                  <button
+                    onClick={() => moveAssignment(idx, 1)}
+                    disabled={idx === assignments.length - 1}
+                    className="p-1 hover:bg-slate-200 rounded text-slate-500 disabled:opacity-30"
+                    title="下に移動"
+                  >
+                    <ArrowDown size={16} />
+                  </button>
+                </div>
                 <button
                   onClick={() => removeAssignment(assignment.id)}
-                  className="text-red-500 hover:text-red-700 text-sm px-2"
+                  className="text-red-500 hover:text-red-700 text-sm px-2 border-l ml-1"
                 >
                   削除
                 </button>
