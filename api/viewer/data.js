@@ -78,8 +78,9 @@ export default async function handler(req, res) {
             const isName = header.includes('氏名') || header.includes('名前') || header.includes('お名前');
             const isEmail = header.includes('メール') || header.toLowerCase().includes('email');
             const isTimestamp = header.includes('タイムスタンプ') || header.toLowerCase().includes('timestamp') || header === 'Timestamp';
+            const isNo = header.toLowerCase() === 'no' || header === 'No.' || header === 'NO';
 
-            if (!isName && !isEmail && !isTimestamp) {
+            if (!isName && !isEmail && !isTimestamp && !isNo) {
                 masterDetails.push({
                     label: header,
                     value: userRow[index] || ''
@@ -120,8 +121,9 @@ export default async function handler(req, res) {
                         const isName = header.includes('氏名') || header.includes('名前') || header.includes('お名前');
                         const isEmail = header.includes('メール') || header.toLowerCase().includes('email');
                         const isTimestamp = header.includes('タイムスタンプ') || header.toLowerCase().includes('timestamp') || header === 'Timestamp';
+                        const isNo = header.toLowerCase() === 'no' || header === 'No.' || header === 'NO';
 
-                        if (!isName && !isEmail && !isTimestamp) {
+                        if (!isName && !isEmail && !isTimestamp && !isNo) {
                             details.push({
                                 label: header,
                                 value: submissionRow[index] || ''

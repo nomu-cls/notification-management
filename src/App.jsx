@@ -102,7 +102,7 @@ function AssignmentViewer() {
                       {a.details.map((item, idx) => (
                         <div key={idx} className="text-sm">
                           <div className="text-xs text-slate-400 font-medium mb-1 truncate" title={item.label}>{item.label}</div>
-                          <div className="text-slate-700 bg-white p-2 rounded border border-slate-200 whitespace-pre-wrap min-h-[2.5rem]">
+                          <div className="text-slate-700 bg-slate-100/50 p-2.5 rounded-lg whitespace-pre-wrap leading-relaxed">
                             {item.value || '-'}
                           </div>
                         </div>
