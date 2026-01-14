@@ -83,12 +83,15 @@ export async function sendReminders(config) {
         throw new Error('スプレッドシートIDまたはシート名が未設定です。');
     }
 
-    // Get tomorrow's date parts for comparison
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const targetYear = tomorrow.getFullYear();
-    const targetMonth = tomorrow.getMonth() + 1;
-    const targetDate = tomorrow.getDate();
+    // Get tomorrow's date in JST
+    const now = new Date();
+    // JST is UTC+9
+    const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const tomorrowJST = new Date(jstNow.getTime() + (24 * 60 * 60 * 1000));
+
+    const targetYear = tomorrowJST.getUTCFullYear();
+    const targetMonth = tomorrowJST.getUTCMonth() + 1;
+    const targetDate = tomorrowJST.getUTCDate();
 
     // Read booking list
     let bookings;

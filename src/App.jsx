@@ -884,7 +884,8 @@ export default function App() {
                   onClick={async () => {
                     if (!confirm('明日の予約リマインド通知を今すぐテスト実行しますか？\n（指定されたチャットへ通知が送信されます）')) return;
                     try {
-                      const res = await fetch(`/api/webhook?type=reminder${currentPromotionId ? `&promotionId=${currentPromotionId}` : ''}`, {
+                      const url = `/api/webhook?type=reminder${currentPromotionId ? `&promotionId=${currentPromotionId}` : ''}`;
+                      const res = await fetch(url, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
@@ -892,7 +893,11 @@ export default function App() {
                         },
                         body: JSON.stringify({ type: 'reminder', data: { promotionId: currentPromotionId } })
                       });
-                      if (res.ok) alert('テスト実行リクエストを送信しました。チャットを確認してください。');
+                      const result = await res.json();
+                      if (res.ok) {
+                        const sent = result.result?.sent || 0;
+                        alert(`テスト実行リクエストを送信しました。\n送信件数: ${sent}件\nチャットを確認してください。`);
+                      }
                       else if (res.status === 401) alert('認証に失敗しました。接続設定のWebhook Secretが正しいか確認してください。');
                       else alert('送信に失敗しました。設定等を確認してください。');
                     } catch (e) {

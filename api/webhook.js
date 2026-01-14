@@ -16,7 +16,8 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    let { type, data, config: injectedConfig, promotionId, sheetName: explicitSheetName } = req.body || {};
+    let { type, data, config: injectedConfig, promotionId: bodyPromoId, sheetName: explicitSheetName } = req.body || {};
+    const promotionId = bodyPromoId || req.query.promotionId;
 
     // Auto-detect External System (UTAGE) Payload
     if (!type && !data && (req.body.event_schedule || req.body.event_member_name || req.body.schedule || req.body['担当者名'])) {
