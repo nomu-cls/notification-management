@@ -129,6 +129,8 @@ export async function handleApplication(data, injectedConfig) {
                 if (!results.taskFailed) {
                     // Extract valid member IDs
                     const validMemberIds = roomMembers.map(m => String(m.account_id));
+                    console.log('Valid member IDs in room:', validMemberIds);
+                    console.log('Target assignee IDs:', taskAssigneeIds);
 
                     // Check if all assignee IDs are valid
                     const invalidIds = taskAssigneeIds.filter(id => !validMemberIds.includes(String(id)));

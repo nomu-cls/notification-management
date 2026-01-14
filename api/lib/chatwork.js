@@ -69,7 +69,8 @@ export async function sendToMessage(token, roomId, accountId, accountName, messa
  * @returns {Promise<{task_ids: number[]}>}
  */
 export async function createTask(token, roomId, body, assigneeIds, limitDate = null, limitType = 'date') {
-    const url = `${CHATWORK_API_BASE}/rooms/${roomId}/tasks`;
+    const normalizedRoomId = String(roomId).replace(/^rid/, '');
+    const url = `${CHATWORK_API_BASE}/rooms/${normalizedRoomId}/tasks`;
 
     const params = new URLSearchParams({
         body: body,
