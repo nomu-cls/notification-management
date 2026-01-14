@@ -20,8 +20,12 @@ export async function handleUniversalNotification(data, injectedConfig) {
     const matchedRules = rules.filter(r => r.sheetName === data.sheetName);
 
     if (matchedRules.length === 0) {
-        console.log(`No notification rules found for sheet: ${data.sheetName}`);
-        return { success: true, message: 'No rules matched' }; // Not an error, just ignored
+        const availableSheets = rules.map(r => r.sheetName).join(', ');
+        console.log(`No notification rules found for sheet: '${data.sheetName}'. Available sheets: [${availableSheets}]`);
+        return {
+            success: true,
+            message: `No rules matched. Requested: '${data.sheetName}', Available: [${availableSheets}]`
+        };
     }
 
     const results = {
