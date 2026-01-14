@@ -697,6 +697,25 @@ function NotificationRuleCard({ rule, index, config, onUpdate, onDelete, fetchHe
                   onChange={(e) => updateTask('bodyTemplate', e.target.value)}
                   placeholder="タスクの詳細内容 ({列名}使用可)"
                 />
+                {headers.length > 0 && (
+                  <div className="mt-1 text-xs text-slate-500">
+                    <p className="mb-1">使用可能な埋め込みタグ（クリックでコピー）:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {headers.map(h => (
+                        <span
+                          key={h}
+                          className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-slate-200"
+                          onClick={() => {
+                            const val = rule.task.bodyTemplate || '';
+                            updateTask('bodyTemplate', val + `{${h}}`);
+                          }}
+                        >
+                          {`{${h}}`}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
