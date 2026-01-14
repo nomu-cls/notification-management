@@ -8,6 +8,7 @@
 
 import { handleConsultation } from './handlers/consultation.js';
 import { handleUniversalNotification } from './handlers/universal.js';
+import { sendReminders } from './cron/reminder.js';
 import { notifyError, ErrorCategory } from './lib/errorNotify.js';
 
 export default async function handler(req, res) {
@@ -78,6 +79,11 @@ export default async function handler(req, res) {
             case 'universal':
                 // New Universal Handler
                 result = await handleUniversalNotification(data, config);
+                break;
+
+            case 'reminder':
+                // Case 4: Day-before Reminder (Manual Trigger for Testing)
+                result = await sendReminders();
                 break;
 
             default:

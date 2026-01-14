@@ -177,20 +177,65 @@ function testConsultation() {
  * Test Function - Universal (Case 2 Replacement)
  */
 function testUniversalParam() {
+    let testFields = {
+        '氏名': 'テスト太郎',
+        '講座名': 'スタートアップ講座',
+        'メールアドレス': 'test@example.com',
+        '電話番号': '090-1234-5678'
+    };
+
+    try {
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const sheet = ss.getSheetByName('本講座申込');
+        if (sheet) {
+            const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+            testFields = {};
+            headers.forEach(h => {
+                if (h) testFields[h] = 'テストデータ（' + h + '）';
+            });
+            // Ensure mail matches for basic test
+            const mailCol = headers.find(h => h.includes('メール'));
+            if (mailCol) testFields[mailCol] = 'test@example.com';
+        }
+    } catch (e) {
+        Logger.log('Realistic headers fetch failed, using dummy: ' + e.message);
+    }
+
     const testPayload = {
         type: 'universal',
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: 5,
-            sheetName: '本講座申込', // Make sure this matches a rule in Admin Panel
-            allFields: {
-                '氏名': 'テスト太郎',
-                '講座名': 'スタートアップ講座',
-                'メールアドレス': 'test@example.com',
-                '電話番号': '090-1234-5678'
-            }
+            sheetName: '本講座申込',
+            allFields: testFields
         }
     };
     sendToVercel(testPayload);
-    Logger.log('Test universal notification sent');
+    Logger.log('Test universal notification sent with fields: ' + Object.keys(testFields).join(', '));
+}
+
+/**
+ * Debug Function: Check settings on the server side
+ */
+function debugConfig() {
+    Logger.log('Fetching config from: ' + CONFIG.CONFIG_URL);
+    const response = UrlFetchApp.fetch(CONFIG.CONFIG_URL, { muteHttpExceptions: true });
+    Logger.log('Response Status: ' + response.getResponseCode());
+    Logger.log('Response Body: ' + response.getContentText());
+}
+
+/**
+ * Test Function - Case 4: Day-before Reminder
+ * This manually triggers the server-side reminder logic.
+ */
+function testReminder() {
+    const testPayload = {
+        type: 'reminder',
+        data: {
+            action: 'manual_trigger',
+            timestamp: new Date().toISOString()
+        }
+    };
+    sendToVercel(testPayload);
+    Logger.log('Reminder trigger sent. Check Vercel logs for results.');
 }
