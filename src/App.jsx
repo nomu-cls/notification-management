@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown } from 'lucide-react';
+import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings } from 'lucide-react';
 import { db } from './lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
