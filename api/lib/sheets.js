@@ -4,6 +4,8 @@
  */
 
 const SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
+import { webcrypto } from 'node:crypto';
+const crypto = webcrypto;
 
 /**
  * Get Google Sheets API access token using service account
