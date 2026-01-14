@@ -4,5 +4,11 @@
             "path": "/api/cron/reminder",
             "schedule": "0 9 * * *"
         }
+    ],
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
     ]
 }

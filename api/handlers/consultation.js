@@ -66,6 +66,8 @@ export async function handleConsultationBooking(data) {
 
     // Step 0: Append row if rowIndex is missing (External Webhook / UTAGE case)
     if (!data.rowIndex) {
+        console.log('rowIndex missing, attempting to append row using mapping:', JSON.stringify(bookingColumnMapping));
+
         if (!bookingColumnMapping || bookingColumnMapping.length === 0) {
             console.warn('No bookingColumnMapping configured. Skipping row append.');
         } else {
