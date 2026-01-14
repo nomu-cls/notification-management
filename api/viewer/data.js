@@ -68,9 +68,31 @@ export default async function handler(req, res) {
         const userEmail = userRow[emailColIdx];
 
         // 2. Fetch Assignments Status and Details
-        const assignmentSsId = viewerConfig.spreadsheetId; // If empty, fallback to questionnaire SS?
+        const assignmentSsId = viewerConfig.spreadsheetId;
         const assignments = viewerConfig.assignments || [];
-        const results = [];
+
+        // Always include Pre-Survey at the top
+        const masterDetails = [];
+        headers.forEach((header, index) => {
+            if (!header) return;
+            const isName = header.includes('氏名') || header.includes('名前') || header.includes('お名前');
+            const isEmail = header.includes('メール') || header.toLowerCase().includes('email');
+            const isTimestamp = header.includes('タイムスタンプ') || header.toLowerCase().includes('timestamp') || header === 'Timestamp';
+
+            if (!isName && !isEmail && !isTimestamp) {
+                masterDetails.push({
+                    label: header,
+                    value: userRow[index] || ''
+                });
+            }
+        });
+
+        const results = [{
+            name: masterSheetName,
+            submitted: true,
+            lastUpdated: '回答済み',
+            details: masterDetails
+        }];
 
         for (const assignment of assignments) {
             const sheetName = assignment.name;
