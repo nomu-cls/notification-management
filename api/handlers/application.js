@@ -41,23 +41,33 @@ export async function handleApplication(data, injectedConfig) {
         chatworkToken,
         applicationRoomA,
         applicationRoomB,
-        applicationTemplate,
+        applicationTemplateA,
+        applicationTemplateB,
         taskAssigneeIds = []
     } = config;
 
     // Build payload summary for error reporting
-    const applicantName = data.applicantName || data.allFields?.['氏名'] || '不明';
-    const courseName = data.allFields?.['講座'] || data.allFields?.['コース'] || '不明';
+    const applicantName = data.applicantName || data.allFields?.['氏名'] || data.allFields?.['お名前'] || '不明';
+    const courseName = data.allFields?.['講座名'] || data.allFields?.['コース'] || '不明';
     const payloadSummary = `Applicant: ${applicantName} / Course: ${courseName}`;
 
-    // Format message with all fields
-    let message = applicationTemplate || '【本講座申込】\n';
+    // Format messages for both rooms
+    const defaultTemplate = '【本講座申込通知】\n申込者：{氏名}\n講座：{講座名}\nメール：{メールアドレス}\n電話：{電話番号}';
 
-    if (data.allFields) {
-        for (const [key, value] of Object.entries(data.allFields)) {
-            message += `${key}：${value}\n`;
-        }
-    }
+    // Preparation data for formatMessage
+    const formatData = {
+        ...data,
+        ...data.allFields,
+        allFields: data.allFields
+    };
+
+    const messageA = applicationTemplateA
+        ? formatMessage(applicationTemplateA, formatData)
+        : formatMessage(defaultTemplate, formatData);
+
+    const messageB = applicationTemplateB
+        ? formatMessage(applicationTemplateB, formatData)
+        : formatMessage('【本講座申込】\n申込者：{氏名}\n講座：{講座名}', formatData);
 
     const results = {
         roomA: null,
@@ -69,7 +79,7 @@ export async function handleApplication(data, injectedConfig) {
     // Send to Room A
     if (applicationRoomA) {
         try {
-            results.roomA = await sendMessage(chatworkToken, applicationRoomA, message);
+            results.roomA = await sendMessage(chatworkToken, applicationRoomA, messageA);
         } catch (error) {
             await notifyError({
                 caseName: CASE_NAME,
@@ -85,7 +95,7 @@ export async function handleApplication(data, injectedConfig) {
     // Send to Room B
     if (applicationRoomB) {
         try {
-            results.roomB = await sendMessage(chatworkToken, applicationRoomB, message);
+            results.roomB = await sendMessage(chatworkToken, applicationRoomB, messageB);
         } catch (error) {
             await notifyError({
                 caseName: CASE_NAME,
@@ -168,7 +178,7 @@ export async function handleApplication(data, injectedConfig) {
             // Fallback: Send warning message if task creation failed
             if (results.taskFailed) {
                 try {
-                    const fallbackMessage = `⚠️ Task Creation Failed ⚠️\n\n${message}\n\n※ タスク自動作成に失敗しました。手動でタスクを作成してください。`;
+                    const fallbackMessage = `⚠️ Task Creation Failed ⚠️\n\n${messageB}\n\n※ タスク自動作成に失敗しました。手動でタスクを作成してください。`;
                     await sendMessage(chatworkToken, applicationRoomB, fallbackMessage);
                 } catch {
                     // Fallback message also failed - already notified about primary error

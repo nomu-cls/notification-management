@@ -101,7 +101,8 @@ export async function createTask(token, roomId, body, assigneeIds, limitDate = n
  * @returns {Promise<Array<{account_id: number, name: string, role: string}>>}
  */
 export async function getRoomMembers(token, roomId) {
-    const url = `${CHATWORK_API_BASE}/rooms/${roomId}/members`;
+    const normalizedRoomId = String(roomId).replace(/^rid/, '');
+    const url = `${CHATWORK_API_BASE}/rooms/${normalizedRoomId}/members`;
 
     const response = await fetch(url, {
         headers: getHeaders(token)
