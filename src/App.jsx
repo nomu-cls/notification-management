@@ -177,7 +177,7 @@ export default function App() {
           <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Database size={18} />} label="接続設定" />
           <TabButton active={activeTab === 'case1'} onClick={() => setActiveTab('case1')} icon={<Users size={18} />} label="Case1: 個別相談" />
           <TabButton active={activeTab === 'case2'} onClick={() => setActiveTab('case2')} icon={<Bell size={18} />} label="Case2: 本講座申込" />
-          <TabButton active={activeTab === 'case3'} onClick={() => setActiveTab('case3')} icon={<FileText size={18} />} label="Case3: WS報告" />
+          <TabButton active={activeTab === 'case3'} onClick={() => setActiveTab('case3')} icon={<FileText size={18} />} label="Case3: 報告" />
           <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="Case4: リマインダー" />
           <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="Case5: 課題集約" />
           <TabButton active={activeTab === 'case6'} onClick={() => setActiveTab('case6')} icon={<Calendar size={18} />} label="Case6: 枠生成" />
@@ -340,7 +340,7 @@ export default function App() {
           {/* Case 3: Workshop Report */}
           {activeTab === 'case3' && (
             <section className="space-y-6">
-              <h2 className="text-lg font-semibold border-b pb-2">Case 3: ワークショップ報告</h2>
+              <h2 className="text-lg font-semibold border-b pb-2">Case 3: 報告</h2>
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-800">
                 報告内容を指定のストックルームへ転送します。
               </div>

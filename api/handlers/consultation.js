@@ -185,7 +185,8 @@ export async function handleConsultationBooking(data) {
     if (data.rowIndex) {
         try {
             viewerUrl = generateViewerUrl(data.email, data.clientName, viewerBaseUrl);
-            await updateCell(spreadsheetId, bookingListSheet, parseInt(data.rowIndex), viewerUrlColumn, viewerUrl);
+            const hyperlinkValue = `=HYPERLINK("${viewerUrl}", "閲覧")`;
+            await updateCell(spreadsheetId, bookingListSheet, parseInt(data.rowIndex), viewerUrlColumn, hyperlinkValue);
         } catch (error) {
             await notifyError({
                 caseName: CASE_NAME,
