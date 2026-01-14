@@ -400,49 +400,49 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="flex gap-6">
+                <div className="flex flex-col lg:flex-row gap-6">
                   {/* Left: Column settings */}
-                  <div className="flex-1 space-y-2">
-                    {/* Default to 10 columns (A-J) if mapping is smaller, to match user request */}
-                    {Array.from({ length: Math.max((config.bookingColumnMapping || []).length, 10) }).map((_, idx) => {
-                      const header = config._headers ? config._headers[idx] : null;
-                      const label = header ? `${String.fromCharCode(65 + idx)}列 (${header})` : `${String.fromCharCode(65 + idx)}列`;
+                  <div className="flex-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                      {/* Default to 10 columns (A-J) if mapping is smaller, to match user request */}
+                      {Array.from({ length: Math.max((config.bookingColumnMapping || []).length, 10) }).map((_, idx) => {
+                        const header = config._headers ? config._headers[idx] : null;
+                        const label = header ? `${String.fromCharCode(65 + idx)}列 (${header})` : `${String.fromCharCode(65 + idx)}列`;
 
-                      return (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="w-32 text-sm font-medium text-slate-500 text-right truncate" title={label}>
-                            {label}
-                          </span>
-                          <input
-                            type="text"
-                            className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            placeholder=""
-                            value={(config.bookingColumnMapping || [])[idx] || ''}
-                            onChange={(e) => {
-                              const newMapping = [...(config.bookingColumnMapping || [])];
-                              // Ensure array is long enough
-                              while (newMapping.length <= idx) newMapping.push('');
-                              newMapping[idx] = e.target.value;
-                              setConfig({ ...config, bookingColumnMapping: newMapping });
-                            }}
-                          />
-                        </div>
-                      );
-                    })}
+                        return (
+                          <div key={idx} className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-md border border-slate-100">
+                            <span className="w-24 text-[11px] font-bold text-slate-400 text-right truncate" title={label}>
+                              {label}
+                            </span>
+                            <input
+                              type="text"
+                              className="flex-1 px-2 py-1 bg-white border border-slate-300 rounded text-sm font-mono focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              placeholder=""
+                              value={(config.bookingColumnMapping || [])[idx] || ''}
+                              onChange={(e) => {
+                                const newMapping = [...(config.bookingColumnMapping || [])];
+                                while (newMapping.length <= idx) newMapping.push('');
+                                newMapping[idx] = e.target.value;
+                                setConfig({ ...config, bookingColumnMapping: newMapping });
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Right: Replacement Tags Helper */}
-                  <div className="w-64 space-y-3">
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="w-full lg:w-48">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg sticky top-4">
                       <h4 className="text-xs font-semibold text-slate-600 mb-2 border-b pb-1">置き換え文字</h4>
-                      <div className="space-y-1 text-xs text-slate-600">
+                      <div className="grid grid-cols-1 gap-1 text-[10px] text-slate-600">
                         <div className="flex justify-between"><span>日時</span> <code className="bg-white px-1 border rounded">{'{dateTime}'}</code></div>
                         <div className="flex justify-between"><span>お名前</span> <code className="bg-white px-1 border rounded">{'{clientName}'}</code></div>
                         <div className="flex justify-between"><span>メール</span> <code className="bg-white px-1 border rounded">{'{email}'}</code></div>
                         <div className="flex justify-between"><span>担当者</span> <code className="bg-white px-1 border rounded">{'{staff}'}</code></div>
-                        <div className="mt-2 pt-2 border-t font-semibold">UTAGE項目</div>
-                        <div className="flex justify-between"><span>全項目</span> <code className="bg-white px-1 border rounded">{'{allFields.xxx}'}</code></div>
-                        <div className="text-gray-400 text-[10px] mt-1">例: {`{allFields.Phone}`}</div>
+                        <div className="mt-2 pt-1 border-t font-semibold">UTAGE項目</div>
+                        <div className="flex justify-between"><span>全項目</span> <code className="bg-white px-1 border rounded text-[9px]">{'{allFields.xxx}'}</code></div>
                       </div>
                     </div>
                   </div>
@@ -458,61 +458,57 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-500 mb-1">
-                    <div>外部システムキー (入力)</div>
-                    <div>内部キー (固定)</div>
-                  </div>
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    {/* Name Mapping */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-500 font-medium">お名前 (clientName)</label>
+                      <input
+                        type="text"
+                        placeholder="例: name, お名前"
+                        className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                        value={config.webhookMapping?.clientName || ''}
+                        onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, clientName: e.target.value } })}
+                      />
+                    </div>
 
-                  {/* Name Mapping */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
-                    <input
-                      type="text"
-                      placeholder="例: name, お名前"
-                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
-                      value={config.webhookMapping?.clientName || ''}
-                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, clientName: e.target.value } })}
-                    />
-                    <div className="text-sm text-slate-700">お名前 (clientName)</div>
-                  </div>
+                    {/* Email Mapping */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-500 font-medium">メールアドレス (email)</label>
+                      <input
+                        type="text"
+                        placeholder="例: email, メールアドレス"
+                        className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                        value={config.webhookMapping?.email || ''}
+                        onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, email: e.target.value } })}
+                      />
+                    </div>
 
-                  {/* Email Mapping */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
-                    <input
-                      type="text"
-                      placeholder="例: email, メールアドレス"
-                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
-                      value={config.webhookMapping?.email || ''}
-                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, email: e.target.value } })}
-                    />
-                    <div className="text-sm text-slate-700">メールアドレス (email)</div>
-                  </div>
+                    {/* DateTime Mapping */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-500 font-medium">予約日時 (dateTime)</label>
+                      <input
+                        type="text"
+                        placeholder="例: schedule, 日時"
+                        className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                        value={config.webhookMapping?.dateTime || ''}
+                        onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, dateTime: e.target.value } })}
+                      />
+                    </div>
 
-                  {/* DateTime Mapping */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
-                    <input
-                      type="text"
-                      placeholder="例: schedule, 日時"
-                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
-                      value={config.webhookMapping?.dateTime || ''}
-                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, dateTime: e.target.value } })}
-                    />
-                    <div className="text-sm text-slate-700">予約日時 (dateTime)</div>
+                    {/* Staff Mapping */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-500 font-medium">担当者/認定コンサル (staff)</label>
+                      <input
+                        type="text"
+                        placeholder="例: member_name, 担当者"
+                        className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                        value={config.webhookMapping?.staff || ''}
+                        onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, staff: e.target.value } })}
+                      />
+                    </div>
                   </div>
-
-                  {/* Staff Mapping */}
-                  <div className="grid grid-cols-2 gap-4 items-center">
-                    <input
-                      type="text"
-                      placeholder="例: member_name, 担当者"
-                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
-                      value={config.webhookMapping?.staff || ''}
-                      onChange={(e) => setConfig({ ...config, webhookMapping: { ...config.webhookMapping, staff: e.target.value } })}
-                    />
-                    <div className="text-sm text-slate-700">担当者/認定コンサル (staff)</div>
-                  </div>
-
-                  <p className="text-[10px] text-slate-400 mt-2">※ カンマ区切りで複数のキーを指定可能です。</p>
+                  <p className="text-[10px] text-slate-400 mt-4 italic">※ カンマ区切りで複数のキーを指定可能です。</p>
                 </div>
               </div>
             </section>
