@@ -121,9 +121,18 @@ export async function getRoomMembers(token, roomId) {
  * @returns {string} Formatted message
  */
 export function formatMessage(template, data) {
-    let result = template;
+    // Handle undefined or null template
+    if (!template) return '';
+
+    let result = String(template);
     for (const [key, value] of Object.entries(data)) {
         result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
     }
+
+    // Also handle nested keys like {allFields.Phone}
+    result = result.replace(/\{allFields\.(\w+)\}/g, (match, key) => {
+        return data.allFields?.[key] || '';
+    });
+
     return result;
 }
