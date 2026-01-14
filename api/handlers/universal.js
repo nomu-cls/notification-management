@@ -58,13 +58,17 @@ export async function handleUniversalNotification(data, injectedConfig) {
                     // Append selected columns if any
                     // columns: ["氏名", "講座名"]
                     if (notif.columns && notif.columns.length > 0 && data.allFields) {
-                        if (message) message += '\n\n'; // Separator
-                        message += '【詳細情報】\n';
+                        let details = '';
                         for (const col of notif.columns) {
                             const val = data.allFields[col];
                             if (val !== undefined) {
-                                message += `${col}：${val}\n`;
+                                details += `${col}：${val}\n`;
                             }
+                        }
+
+                        if (details) {
+                            if (message) message += '\n'; // Separator
+                            message += `[info][title]詳細情報[/title]${details}[/info]`;
                         }
                     }
 
