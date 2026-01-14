@@ -306,8 +306,6 @@ export default function App() {
         <aside className="w-full md:w-64 space-y-2">
           <TabButton active={activeTab === 'general'} onClick={() => setActiveTab('general')} icon={<Database size={18} />} label="接続設定" />
           <TabButton active={activeTab === 'case1'} onClick={() => setActiveTab('case1')} icon={<Users size={18} />} label="Case1: 個別相談" />
-          <TabButton active={activeTab === 'case2'} onClick={() => setActiveTab('case2')} icon={<FileText size={18} />} label="Case2: 本講座申込" />
-          <TabButton active={activeTab === 'case3'} onClick={() => setActiveTab('case3')} icon={<FileText size={18} />} label="Case3: ワークショップ" />
           <TabButton active={activeTab === 'custom'} onClick={() => setActiveTab('custom')} icon={<Bell size={18} />} label="カスタム通知設定" />
           <TabButton active={activeTab === 'case4'} onClick={() => setActiveTab('case4')} icon={<Clock size={18} />} label="Case4: リマインダー" />
           <TabButton active={activeTab === 'case5'} onClick={() => setActiveTab('case5')} icon={<CheckSquare size={18} />} label="Case5: 課題集約" />
@@ -541,42 +539,7 @@ export default function App() {
             </section>
           )}
 
-          {/* Case 2: Main Course Application */}
-          {activeTab === 'case2' && (
-            <Case2Section config={config} setConfig={setConfig} />
-          )}
-
-          {/* Case 3: Workshop Report */}
-          {activeTab === 'case3' && (
-            <section className="space-y-6">
-              <h2 className="text-lg font-semibold border-b pb-2">Case 3: ワークショップ報告</h2>
-              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
-                ワークショップ等の報告を受け取り、指定されたチャットへ通知（ストック）します。
-              </div>
-
-              <div className="space-y-4">
-                <InputGroup
-                  label="通知先ルームID"
-                  placeholder="123456789"
-                  value={config.workshopReportRoom || ''}
-                  onChange={(v) => setConfig({ ...config, workshopReportRoom: v })}
-                />
-
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-slate-700">報告テンプレート (任意)</label>
-                  <textarea
-                    className="w-full h-32 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    value={config.workshopTemplate || ''}
-                    onChange={(e) => setConfig({ ...config, workshopTemplate: e.target.value })}
-                    placeholder="（空欄の場合はデフォルトフォーマットを使用）"
-                  />
-                  <p className="text-xs text-slate-500">※ 入力されたすべての項目がテンプレートの下に自動追記されます。</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* New Custom Notifications (Was Case 2 & 3) */}
+          {/* Custom Notifications (Replaces Case 2 & 3) */}
           {activeTab === 'custom' && (
             <CustomNotificationsSection
               config={config}
@@ -591,6 +554,39 @@ export default function App() {
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
                 毎日18:00に翌日の予約担当者へリマインドを送信します。
               </div>
+              <div className="grid gap-4 bg-yellow-50/50 p-4 rounded-lg border border-yellow-100 mb-6">
+                <h3 className="font-medium text-yellow-900 border-b border-yellow-200 pb-2 mb-2 flex items-center gap-2">
+                  <Settings size={16} /> 配信設定
+                </h3>
+                <InputGroup
+                  label="通知先チャットルームID (任意)"
+                  placeholder="指定がない場合は担当者の個人チャットへ通知"
+                  value={config.reminderRoomId || ''}
+                  onChange={(v) => setConfig({ ...config, reminderRoomId: v })}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputGroup
+                    label="対象スプレッドシートID (任意)"
+                    placeholder="メイン設定を使用する場合は空欄"
+                    value={config.reminderSpreadsheetId || ''}
+                    onChange={(v) => setConfig({ ...config, reminderSpreadsheetId: v })}
+                  />
+                  <InputGroup
+                    label="対象シート名 (任意)"
+                    placeholder="メイン設定を使用する場合は空欄"
+                    value={config.reminderSheetName || ''}
+                    onChange={(v) => setConfig({ ...config, reminderSheetName: v })}
+                  />
+                </div>
+                <InputGroup
+                  label="開催日時の列名"
+                  placeholder="例: 開催日時 / 日付 (空欄時は自動判定)"
+                  value={config.reminderDateCol || ''}
+                  onChange={(v) => setConfig({ ...config, reminderDateCol: v })}
+                />
+                <p className="text-xs text-slate-500 mt-1">※ 指定された列の日付が「翌日」である行を抽出してリマインドします。</p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">リマインドテンプレート</label>
                 <textarea
@@ -1211,124 +1207,3 @@ function Case5Section({ config, setConfig }) {
   );
 }
 
-function Case2Section({ config, setConfig }) {
-  const [newAssigneeId, setNewAssigneeId] = useState('');
-
-  const updateConfig = (field, value) => {
-    setConfig({ ...config, [field]: value });
-  };
-
-  const addAssignee = () => {
-    if (!newAssigneeId.trim()) return;
-    const current = config.taskAssigneeIds || [];
-    const idToAdd = newAssigneeId.trim();
-    if (!current.includes(idToAdd)) {
-      updateConfig('taskAssigneeIds', [...current, idToAdd]);
-    }
-    setNewAssigneeId('');
-  };
-
-  const removeAssignee = (id) => {
-    const current = config.taskAssigneeIds || [];
-    updateConfig('taskAssigneeIds', current.filter(item => item !== id));
-  };
-
-  return (
-    <section className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold border-b pb-2 mb-4">Case 2: 本講座申し込み</h2>
-        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800 mb-6">
-          本講座への申し込みがあった際、2つのグループへの通知と、祝賀動画撮影のタスク作成を自動で行います。
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Room A */}
-        <div className="space-y-4">
-          <h3 className="font-medium text-slate-800 flex items-center gap-2">
-            <Send size={18} className="text-blue-500" /> 通知先A (メインルーム等)
-          </h3>
-          <InputGroup
-            label="通知先ルームID"
-            placeholder="123456789"
-            value={config.applicationRoomA || ''}
-            onChange={(v) => updateConfig('applicationRoomA', v)}
-          />
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700">通知テンプレートA</label>
-            <textarea
-              className="w-full h-32 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              value={config.applicationTemplateA || ''}
-              onChange={(e) => updateConfig('applicationTemplateA', e.target.value)}
-              placeholder="デフォルトを使用する場合は空欄"
-            />
-          </div>
-        </div>
-
-        {/* Room B */}
-        <div className="space-y-4">
-          <h3 className="font-medium text-slate-800 flex items-center gap-2">
-            <Send size={18} className="text-indigo-500" /> 通知先B (タスク作成ルーム)
-          </h3>
-          <InputGroup
-            label="通知先ルームID"
-            placeholder="987654321"
-            value={config.applicationRoomB || ''}
-            onChange={(v) => updateConfig('applicationRoomB', v)}
-          />
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-700">通知テンプレートB</label>
-            <textarea
-              className="w-full h-32 p-3 bg-slate-50 border border-slate-300 rounded-md font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              value={config.applicationTemplateB || ''}
-              onChange={(e) => updateConfig('applicationTemplateB', e.target.value)}
-              placeholder="デフォルトを使用する場合は空欄"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Task Assignment */}
-      <div className="pt-6 border-t">
-        <h3 className="font-medium text-slate-800 flex items-center gap-2 mb-4">
-          <CheckSquare size={18} className="text-green-500" /> タスク担当者設定 (Room B)
-        </h3>
-        <p className="text-xs text-slate-500 mb-3">祝賀動画撮影タスクを割り当てる Chatwork アカウントIDを入力してください。</p>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          {(config.taskAssigneeIds || []).map(id => (
-            <span key={id} className="bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-              ID: {id}
-              <button
-                onClick={() => removeAssignee(id)}
-                className="text-slate-400 hover:text-red-500"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          {(config.taskAssigneeIds || []).length === 0 && (
-            <span className="text-sm text-slate-400 italic">担当者が設定されていません</span>
-          )}
-        </div>
-
-        <div className="flex gap-2 max-w-sm">
-          <input
-            type="text"
-            placeholder="アカウントIDを入力"
-            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            value={newAssigneeId}
-            onChange={(e) => setNewAssigneeId(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addAssignee()}
-          />
-          <button
-            onClick={addAssignee}
-            className="bg-slate-800 text-white px-4 py-2 rounded-md text-sm hover:bg-slate-700 transition-colors"
-          >
-            追加
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
