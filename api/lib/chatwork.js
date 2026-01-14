@@ -152,14 +152,26 @@ export function formatMessage(template, data) {
 
     let result = String(template);
     for (const [key, value] of Object.entries(data)) {
-        const formattedValue = formatValue(value);
-        result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), formattedValue !== undefined ? formattedValue : '');
+        let formattedValue = formatValue(value);
+        if (typeof formattedValue === 'object' && formattedValue !== null) {
+            // Safely convert object to string/JSON to avoid "Cannot convert object to primitive value"
+            try {
+                formattedValue = JSON.stringify(formattedValue);
+            } catch (e) {
+                formattedValue = '[Object]';
+            }
+        }
+        result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), formattedValue !== undefined ? String(formattedValue) : '');
     }
 
     // Also handle nested keys like {allFields.Phone} or {allFields.カナ}
     result = result.replace(/\{allFields\.([^}]+)\}/g, (match, key) => {
         const val = data.allFields?.[key];
-        return formatValue(val) || '';
+        let fVal = formatValue(val);
+        if (typeof fVal === 'object' && fVal !== null) {
+            try { fVal = JSON.stringify(fVal); } catch (e) { fVal = '[Object]'; }
+        }
+        return fVal !== undefined ? String(fVal) : '';
     });
 
     return result;

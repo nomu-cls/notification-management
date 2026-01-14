@@ -35,6 +35,7 @@ export default async function handler(req, res) {
         type = 'consultation';
 
         // Map external fields to internal structure
+        console.log('UTAGE Payload Keys:', Object.keys(req.body).join(', '));
         data = {
             timestamp: new Date().toISOString(),
             rowIndex: null, // External system doesn't know row index, handle later if needed
