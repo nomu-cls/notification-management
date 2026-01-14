@@ -16,7 +16,101 @@ const TIME_SLOTS = [
 
 const DAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
 
+
+function AssignmentViewer() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const parts = window.location.pathname.split('/');
+    const id = parts[parts.length - 1]; // hash or email
+
+    async function fetchData() {
+      try {
+        const res = await fetch(`/api/viewer/data?id=${encodeURIComponent(id)}`);
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Failed to fetch data');
+        }
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500">読み込み中...</div>;
+  if (error) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-red-100 text-center">
+        <div className="text-red-500 text-4xl mb-4">⚠️</div>
+        <h2 className="text-lg font-bold text-slate-800 mb-2">データの取得に失敗しました</h2>
+        <p className="text-slate-500 text-sm mb-6">{error}</p>
+        <button onClick={() => window.location.reload()} className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-md text-sm transition-all">
+          再試行
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-12 px-4">
+      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        <div className="bg-gradient-to-br from-indigo-600 to-blue-500 p-8 text-white relative">
+          <div className="relative z-10">
+            <h1 className="text-2xl font-bold mb-1">{data.userName} 様</h1>
+            <p className="opacity-80 text-sm">課題提出状況</p>
+          </div>
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <CheckSquare size={120} />
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="space-y-3">
+            {data.assignments.map((a, i) => (
+              <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${a.submitted ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
+                    <FileText size={20} />
+                  </div>
+                  <span className="font-medium text-slate-700">{a.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {a.submitted ? (
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">提出済み ✓</span>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">未提出</span>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {data.assignments.length === 0 && (
+              <div className="text-center py-8 text-slate-400 italic text-sm">
+                課題が登録されていません
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-4 text-center border-t border-slate-200">
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest">Notification Management System</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const isViewer = window.location.pathname.startsWith('/viewer/');
+  if (isViewer) return <AssignmentViewer />;
+
   const [config, setConfig] = useState({
     spreadsheetId: '',
     staffListSheet: '',

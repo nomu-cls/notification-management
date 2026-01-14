@@ -26,7 +26,7 @@ const CASE_NAME = 'Case 1: 個別相談予約';
  */
 function generateViewerUrl(email, name, baseUrl) {
     const salt = process.env.VIEWER_URL_SALT || 'default-salt';
-    const input = `${salt}:${email || name}:${Date.now()}`;
+    const input = `${salt}:${email || name}`;
     const hash = crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
     return `${baseUrl}/viewer/${hash}`;
 }
