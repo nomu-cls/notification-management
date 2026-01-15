@@ -24,7 +24,7 @@ function AssignmentViewer() {
 
   useEffect(() => {
     const parts = window.location.pathname.split('/');
-    const id = parts[parts.length - 1]; // hash or email
+    const id = decodeURIComponent(parts[parts.length - 1]); // hash or email
     const searchParams = new URLSearchParams(window.location.search);
     const promotionId = searchParams.get('promotionId');
 

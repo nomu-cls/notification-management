@@ -41,25 +41,24 @@ export default async function handler(req, res) {
 
                 if (masterData.length > 0) {
                     headers = masterData[0];
-                    emailColIdx = headers.findIndex(h => h && (h.includes('メール') || h.toLowerCase().includes('email')));
-                    nameColIdx = headers.findIndex(h => h && (h.includes('氏名') || h.includes('名前') || h.includes('お名前')));
+                    const normalizedId = id.trim().toLowerCase();
 
                     // Search for user by ID (could be email or hash)
                     for (let i = 1; i < masterData.length; i++) {
                         const row = masterData[i];
-                        const email = row[emailColIdx];
-                        const name = row[nameColIdx];
+                        const email = (row[emailColIdx] || '').trim().toLowerCase();
+                        const name = (row[nameColIdx] || '').trim();
 
                         // Check email match
-                        if (email === id) {
+                        if (email === normalizedId) {
                             userRow = row;
                             break;
                         }
 
                         // Check hash match
-                        const input = `${salt}:${email || name}`;
+                        const input = `${salt}:${row[emailColIdx] || name}`;
                         const hash = crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
-                        if (hash === id) {
+                        if (hash === normalizedId) {
                             userRow = row;
                             break;
                         }
@@ -134,19 +133,29 @@ export default async function handler(req, res) {
             try {
                 const sheetData = await readSheet(assignmentSsId || masterSsId, `${sheetName}!A:Z`);
                 const h = sheetData[0] || [];
-                const eIdx = h.findIndex(col => col && (col.includes('メール') || col.toLowerCase().includes('email')));
+                const normalizedUserEmail = (userEmail || '').trim().toLowerCase();
+                const normalizedUserName = (userName || '').trim();
 
                 // If email column not found, try name
-                const nIdx = h.findIndex(col => col && (col.includes('氏名') || col.includes('名前')));
+                const nIdx = h.findIndex(col => col && (col.includes('氏名') || col.includes('名前') || col.includes('お名前') || col.toLowerCase().includes('name')));
 
                 let submissionRow = null;
                 if (eIdx !== -1) {
-                    submissionRow = sheetData.find(row => row[eIdx] === userEmail);
-                } else if (nIdx !== -1) {
-                    submissionRow = sheetData.find(row => row[nIdx] === userName);
+                    submissionRow = sheetData.find(row => (row[eIdx] || '').trim().toLowerCase() === normalizedUserEmail);
+                }
+
+                if (!submissionRow && nIdx !== -1) {
+                    submissionRow = sheetData.find(row => (row[nIdx] || '').trim() === normalizedUserName);
                 }
 
                 if (submissionRow) {
+                    // Update userName from this sheet if it's still Unknown
+                    if (userName === '不明' && nIdx !== -1) {
+                        const foundName = submissionRow[nIdx];
+                        if (foundName && foundName !== '不明') {
+                            userName = foundName;
+                        }
+                    }
                     // Extract details
                     const details = [];
                     h.forEach((header, index) => {
