@@ -14,21 +14,21 @@ import { readSheet, updateCell, appendRow } from '../lib/sheets.js';
 import { sendMessage, sendToMessage, formatMessage } from '../lib/chatwork.js';
 import { getConfig } from '../lib/firestore.js';
 import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
-import crypto from 'crypto';
-
 const CASE_NAME = 'Case 1: 個別相談予約';
 
 /**
- * Generate unique hashed URL for assignment viewer
+ * Generate viewer URL using email directly
  * @param {string} email - Client email
- * @param {string} name - Client name
- * @returns {string} Hashed URL path
+ * @param {string} name - Client name (fallback)
+ * @param {string} baseUrl - Base URL for the viewer
+ * @param {string} promotionId - Promotion ID for the event
+ * @returns {string} Viewer URL with email and promotionId
  */
-function generateViewerUrl(email, name, baseUrl) {
-    const salt = process.env.VIEWER_URL_SALT || 'default-salt';
-    const input = `${salt}:${email || name}`;
-    const hash = crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
-    return `${baseUrl}/viewer/${hash}`;
+function generateViewerUrl(email, name, baseUrl, promotionId) {
+    const identifier = email || name;
+    const encodedId = encodeURIComponent(identifier);
+    const url = `${baseUrl}/viewer/${encodedId}`;
+    return promotionId ? `${url}?promotionId=${encodeURIComponent(promotionId)}` : url;
 }
 
 /**
@@ -62,7 +62,8 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
         bookingColumnMapping = [], // New: Column mapping configuration
         staffColumn = 8,      // Column H (1-indexed) - User specified "担当者" is at index 7 (0-based)
         viewerUrlColumn = 15, // Column O (1-indexed)
-        viewerBaseUrl = process.env.VERCEL_URL || 'https://your-app.vercel.app'
+        viewerBaseUrl = process.env.VERCEL_URL || 'https://your-app.vercel.app',
+        promotionId // Current promotion ID for viewer URL
     } = config;
 
     // Step 1: Find matching staff from Staff List
@@ -203,7 +204,7 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
     let viewerUrl = null;
     if (data.rowIndex) {
         try {
-            viewerUrl = generateViewerUrl(data.email, data.clientName, viewerBaseUrl);
+            viewerUrl = generateViewerUrl(data.email, data.clientName, viewerBaseUrl, promotionId);
             const hyperlinkValue = `=HYPERLINK("${viewerUrl}", "閲覧")`;
             await updateCell(spreadsheetId, bookingListSheet, parseInt(data.rowIndex), viewerUrlColumn, hyperlinkValue);
         } catch (error) {
