@@ -41,6 +41,8 @@ export default async function handler(req, res) {
 
                 if (masterData.length > 0) {
                     headers = masterData[0];
+                    emailColIdx = headers.findIndex(h => h && (h.includes('メール') || h.toLowerCase().includes('email')));
+                    nameColIdx = headers.findIndex(h => h && (h.includes('氏名') || h.includes('名前') || h.includes('お名前')));
                     const normalizedId = id.trim().toLowerCase();
 
                     // Search for user by ID (could be email or hash)
@@ -133,6 +135,7 @@ export default async function handler(req, res) {
             try {
                 const sheetData = await readSheet(assignmentSsId || masterSsId, `${sheetName}!A:Z`);
                 const h = sheetData[0] || [];
+                const eIdx = h.findIndex(col => col && (col.includes('メール') || col.toLowerCase().includes('email')));
                 const normalizedUserEmail = (userEmail || '').trim().toLowerCase();
                 const normalizedUserName = (userName || '').trim();
 
