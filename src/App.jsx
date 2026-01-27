@@ -1342,6 +1342,7 @@ function NotificationRuleCard({ rule, index, config, onUpdate, onDelete, fetchHe
               {/* Task Filter Settings */}
               <TaskFilterSettings
                 filter={rule.task.filter || {}}
+                headers={headers}
                 onChange={(newFilter) => updateTask('filter', newFilter)}
               />
 
