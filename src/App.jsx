@@ -208,18 +208,8 @@ export default function App() {
     localStorage.setItem('adminAuthenticated', 'true');
   };
 
-  // If viewing the public viewer page, render it immediately without auth check
-  if (isViewer) return <AssignmentViewer />;
+  // authChecked is checked later to satisfy Hook Rules
 
-  // Initial loading state while checking auth
-  if (!authChecked) return null;
-
-  // If not authenticated and not in viewer, show login
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
-  }
-
-  // Confirmed Authenticated Admin Below...
 
 
 
@@ -512,6 +502,11 @@ export default function App() {
     navigator.clipboard.writeText(generatedSlots);
     alert('コピーしました！');
   };
+
+  // Early returns moved here to satisfy Hook Rules (Error #310)
+  if (isViewer) return <AssignmentViewer />;
+  if (!authChecked) return null;
+  if (!isAuthenticated) return <Login onLogin={handleLogin} />;
 
   if (isLoading) {
     return (
