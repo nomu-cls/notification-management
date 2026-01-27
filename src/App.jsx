@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings, BookOpen, Link } from 'lucide-react';
+import { Bell, CheckSquare, Database, Send, Save, Calendar, Clock, Copy, FileText, Users, ArrowUp, ArrowDown, Settings, BookOpen, Link, Lock, LogIn } from 'lucide-react';
 import { db } from './lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
+import TaskFilterSettings from './components/TaskFilterSettings'; // [NEW]
 
 // --- Constants ---
 const DEFAULT_TEMPLATE = "【新着通知】\n項目：{内容}\n担当：{担当者}\nご確認お願いします。";
@@ -15,6 +16,63 @@ const TIME_SLOTS = [
 ];
 
 const DAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
+
+
+// --- Login Component ---
+function Login({ onLogin }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Simple password check against environment variable
+    // In production, this should preferably be more secure, but for this use case it provides basic protection
+    // independent of Vercel auth.
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+
+    if (password === adminPassword) {
+      onLogin();
+    } else {
+      setError('パスワードが間違っています');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-100 w-full max-w-sm">
+        <div className="flex justify-center mb-6 text-blue-600">
+          <div className="bg-blue-50 p-3 rounded-full">
+            <Lock size={32} />
+          </div>
+        </div>
+        <h2 className="text-xl font-bold text-center text-slate-800 mb-6">管理者ログイン</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="パスワードを入力"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              autoFocus
+            />
+          </div>
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <LogIn size={18} />
+            ログイン
+          </button>
+        </form>
+        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+          <p className="text-xs text-slate-400">Notification Management System</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 function AssignmentViewer() {
@@ -131,7 +189,39 @@ function AssignmentViewer() {
 
 export default function App() {
   const isViewer = window.location.pathname.startsWith('/viewer/');
+
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    // Check local storage for existing session
+    const storedAuth = localStorage.getItem('adminAuthenticated');
+    if (storedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+    setAuthChecked(true);
+  }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    localStorage.setItem('adminAuthenticated', 'true');
+  };
+
+  // If viewing the public viewer page, render it immediately without auth check
   if (isViewer) return <AssignmentViewer />;
+
+  // Initial loading state while checking auth
+  if (!authChecked) return null;
+
+  // If not authenticated and not in viewer, show login
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  // Confirmed Authenticated Admin Below...
+
+
 
   const [config, setConfig] = useState({
     spreadsheetId: '',
@@ -1253,6 +1343,12 @@ function NotificationRuleCard({ rule, index, config, onUpdate, onDelete, fetchHe
                   onChange={(e) => updateTask('assigneeIds', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
                 />
               </div>
+
+              {/* Task Filter Settings */}
+              <TaskFilterSettings
+                filter={rule.task.filter || {}}
+                onChange={(newFilter) => updateTask('filter', newFilter)}
+              />
 
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-slate-700">タスク内容</label>
