@@ -1,6 +1,7 @@
 import { sendMessage, createTask, getRoomMembers, formatMessage, formatValue } from '../lib/chatwork.js';
 import { getConfig } from '../lib/firestore.js';
 import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
+import { evaluateFilter } from '../lib/filter.js';
 
 const CASE_NAME = 'Universal Notification';
 
@@ -92,6 +93,13 @@ export async function handleUniversalNotification(data, injectedConfig = null) {
         // 2. Process Task
         if (rule.task && rule.task.enabled && rule.task.roomId) {
             try {
+                // Check Filter
+                if (rule.task.filter && !evaluateFilter(rule.task.filter, data.allFields)) {
+                    console.log(`Skipping task creation for rule ${rule.id} due to filter mismatch.`);
+                    results.tasks.push({ roomId: rule.task.roomId, status: 'skipped', reason: 'filter_mismatch' });
+                    continue;
+                }
+
                 // Validate Assignees
                 const assigneeIds = rule.task.assigneeIds || [];
                 if (assigneeIds.length === 0) {
