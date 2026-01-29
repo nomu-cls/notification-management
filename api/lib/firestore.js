@@ -141,7 +141,8 @@ export async function listPromotions() {
                 return {
                     id,
                     name: fields.name || id,
-                    createdAt: fields.createdAt || null
+                    createdAt: fields.createdAt || null,
+                    updatedAt: fields.updatedAt || fields.createdAt || null
                 };
             });
             return promotions;
@@ -163,21 +164,49 @@ export async function listPromotions() {
 export async function findPromotionBySheetName(sheetName) {
     const promotions = await listPromotions();
 
+    const matches = [];
+
     for (const promo of promotions) {
         const config = await getConfig(promo.id);
 
+        let matchType = null;
+        let ruleId = null;
+
         // Check Case 1 booking list sheet
         if (config.bookingListSheet === sheetName) {
-            return { promotionId: promo.id, config, type: 'consultation' };
+            matchType = 'consultation';
         }
 
         // Check notification rules
         if (config.notificationRules && Array.isArray(config.notificationRules)) {
             const matchedRule = config.notificationRules.find(r => r.sheetName === sheetName);
             if (matchedRule) {
-                return { promotionId: promo.id, config, type: 'universal', ruleId: matchedRule.id };
+                matchType = 'universal';
+                ruleId = matchedRule.id;
             }
         }
+
+        if (matchType) {
+            matches.push({
+                promotionId: promo.id,
+                config,
+                type: matchType,
+                ruleId,
+                updatedAt: promo.updatedAt || promo.createdAt || ''
+            });
+        }
+    }
+
+    if (matches.length > 0) {
+        // Sort by updatedAt descending to favor the latest one
+        matches.sort((a, b) => {
+            const dateA = new Date(a.updatedAt);
+            const dateB = new Date(b.updatedAt);
+            return dateB - dateA;
+        });
+
+        console.log(`Found ${matches.length} matching promotions for sheet '${sheetName}'. Using latest: ${matches[0].promotionId}`);
+        return matches[0];
     }
 
     // Fallback to legacy config

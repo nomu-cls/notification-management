@@ -69,30 +69,43 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
     // Step 1: Find matching staff from Staff List
     let matchedStaff = null;
     let consultantName = data.staff; // "認定コンサル" from webhook
+    let staffList = [];
+    let dateTimeColIdx = -1;
+    let consultantColIdx = -1;
 
     try {
-        const staffList = await readSheet(spreadsheetId, `${staffListSheet}!A:Z`);
+        staffList = await readSheet(spreadsheetId, `${staffListSheet}!A:Z`);
         const headers = staffList[0];
 
-        // Find column indices
-        const dateTimeColIdx = headers.findIndex(h => h && (String(h).trim().includes('日時') || String(h).trim().includes('DateTime')));
-        const consultantColIdx = headers.findIndex(h => h && String(h).trim() === String(consultantName).trim());
-
-        console.log('Search Indices:', { dateTimeColIdx, consultantColIdx, lookingFor: consultantName });
-        console.log('Found Headers:', JSON.stringify(headers));
-
-        // Helper to normalize date strings for comparison
+        // Helper to normalize strings for comparison (aggressive)
         const normalize = (val) => {
             if (!val) return '';
             return String(val)
                 .trim()
-                .replace(/（/g, '(')
-                .replace(/）/g, ')')
-                .replace(/[～〜~]/g, '-') // Normalize all wavy dashes to hyphen for comparison
-                .replace(/\s/g, '');      // Remove all spaces
+                .replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)) // Full-width to half-width digits
+                .replace(/[（]/g, '(')
+                .replace(/[）]/g, ')')
+                .replace(/[：]/g, ':')
+                .replace(/[\u301c\u223c\uff5e~]/g, '-') // Normalize all wavy dashes and tildes to hyphen
+                .replace(/[\s\u3000]/g, '');      // Remove all spaces (half and full width)
         };
 
         const targetDateNormalized = normalize(data.dateTime);
+        const targetConsultantNormalized = normalize(consultantName);
+
+        if (headers) {
+            dateTimeColIdx = headers.findIndex(h => {
+                if (!h) return false;
+                const normalized = normalize(h);
+                return normalized.includes('日時') || normalized.includes('DateTime');
+            });
+            consultantColIdx = headers.findIndex(h => {
+                if (!h) return false;
+                return normalize(h) === targetConsultantNormalized;
+            });
+        }
+
+        console.log('Search Indices:', { dateTimeColIdx, consultantColIdx, lookingFor: consultantName });
 
         if (dateTimeColIdx >= 0 && consultantColIdx >= 0) {
             for (let i = 1; i < staffList.length; i++) {
@@ -178,7 +191,7 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
         await notifyError({
             caseName: CASE_NAME,
             errorCategory: ErrorCategory.STAFF_MATCH_FAILED,
-            errorMessage: `No matching staff found for DateTime: "${data.dateTime}", Consultant: "${consultantName}"`,
+            errorMessage: `No matching staff found for DateTime: "${data.dateTime}", Consultant: "${consultantName}". (Indices: DT=${dateTimeColIdx}, CS=${consultantColIdx}, Rows=${staffList?.length})`,
             rowNumber: data.rowIndex,
             payload: data
         });

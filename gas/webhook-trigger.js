@@ -33,8 +33,8 @@ function getFormTypeConfig(sheetName) {
         if (response.getResponseCode() === 200) {
             const data = JSON.parse(response.getContentText());
 
-            // 1. Check for Case 1 (Consultation)
-            if (data.bookingListSheet && data.bookingListSheet === sheetName) {
+            // 1. Check for Case 1 (Consultation) - Supports multiple promotions
+            if (data.bookingListSheet === sheetName || (data.bookingSheets && data.bookingSheets.includes(sheetName))) {
                 return { type: 'consultation' };
             }
 
@@ -225,17 +225,22 @@ function debugConfig() {
 }
 
 /**
- * Test Function - Case 4: Day-before Reminder
- * This manually triggers the server-side reminder logic.
+ * API Endpoint for results
  */
-function testReminder() {
-    const testPayload = {
-        type: 'reminder',
-        data: {
-            action: 'manual_trigger',
-            timestamp: new Date().toISOString()
-        }
-    };
-    sendToVercel(testPayload);
-    Logger.log('Reminder trigger sent. Check Vercel logs for results.');
+function doGet(e) {
+    const sheetName = e.parameter.sheet || "個別相談予約一覧"; // デフォルトのシート名
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+        return ContentService.createTextOutput(JSON.stringify({
+            error: "Sheet not found: " + sheetName
+        })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const values = sheet.getDataRange().getValues();
+
+    return ContentService.createTextOutput(JSON.stringify({
+        values: values
+    })).setMimeType(ContentService.MimeType.JSON);
 }
