@@ -6,14 +6,18 @@
  * - doPost: フォームデータの書き込み + Chatwork通知
  */
 
-// ========== 通知設定 ==========
+// ========== 通知設定（プロモーションごとに編集） ==========
 const NOTIFICATION_CONFIG = {
+    // ★重要: プロモーションID（notification-managementのURLから確認）
+    // 例: https://notification-management-khaki.vercel.app/?promo=fJwGH1B7r78vcwmFktmD
+    PROMOTION_ID: '',  // ← ここにプロモーションIDを入力
+
     WEBHOOK_URL: 'https://notification-management-khaki.vercel.app/api/webhook',
     WEBHOOK_SECRET: 'my-secret-key-12345',
     // 通知を送信するシート名（複数指定可能）
     NOTIFY_SHEETS: ['日程リクエスト']
 };
-// ==============================
+// =========================================================
 
 // 1. 分析用 (読み取り)
 function doGet(e) {
@@ -96,6 +100,7 @@ function doPost(e) {
 function sendNotificationToWebhook(sheetName, data) {
     const payload = {
         type: 'universal',
+        promotionId: NOTIFICATION_CONFIG.PROMOTION_ID,  // ← プロモーションID追加
         data: {
             timestamp: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
             sheetName: sheetName,
