@@ -683,6 +683,30 @@ export default function App() {
           {/* General Settings */}
           {activeTab === 'general' && (
             <section className="space-y-6">
+              {/* Promotion ID Display */}
+              {currentPromotionId && currentPromotionId !== '_legacy' && (
+                <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                  <h3 className="text-sm font-semibold text-indigo-800 mb-2">📌 このプロモーションID（GAS設定用）</h3>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-white border border-indigo-300 rounded font-mono text-sm text-indigo-700 select-all">
+                      {currentPromotionId}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentPromotionId);
+                        alert('コピーしました: ' + currentPromotionId);
+                      }}
+                      className="px-3 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition-colors"
+                    >
+                      コピー
+                    </button>
+                  </div>
+                  <p className="text-xs text-indigo-600 mt-2">
+                    このIDをGASの <code className="bg-white px-1 rounded">PROMOTION_ID</code> に設定してください。
+                  </p>
+                </div>
+              )}
+
               <h2 className="text-lg font-semibold border-b pb-2">Google スプレッドシート連携</h2>
               <div className="grid gap-4">
                 <InputGroup label="メイン スプレッドシートID" placeholder="1abc1234567890..." value={config.spreadsheetId} onChange={(v) => setConfig({ ...config, spreadsheetId: v })} />
