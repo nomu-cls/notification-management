@@ -207,6 +207,7 @@ function testUniversalParam() {
 
     const testPayload = {
         type: 'universal',
+        promotionId: CONFIG.PROMOTION_ID,  // ← プロモーションIDを追加
         data: {
             timestamp: new Date().toISOString(),
             rowIndex: 5,
@@ -215,7 +216,7 @@ function testUniversalParam() {
         }
     };
     sendToVercel(testPayload);
-    Logger.log('Test universal notification sent with fields: ' + Object.keys(testFields).join(', '));
+    Logger.log('Test universal notification sent. PromotionId: ' + CONFIG.PROMOTION_ID + ', fields: ' + Object.keys(testFields).join(', '));
 }
 
 /**
