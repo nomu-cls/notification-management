@@ -6,10 +6,17 @@ import { notifyError, ErrorCategory } from '../lib/errorNotify.js';
 const CASE_NAME = '前日リマインダー';
 
 export default async function handler(req, res) {
+    console.log('[Reminder Cron] Handler invoked at:', new Date().toISOString());
+    console.log('[Reminder Cron] Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+    console.log('[Reminder Cron] CRON_SECRET env:', process.env.CRON_SECRET ? 'Set' : 'Not set');
+
     // Verify cron secret for Vercel Cron
     if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+        console.warn('[Reminder Cron] Unauthorized access attempt');
         return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    console.log('[Reminder Cron] Authorization passed, starting reminder process');
 
     try {
         const results = [];
