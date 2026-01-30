@@ -23,6 +23,20 @@ export default async function handler(req, res) {
     if (!type && !data && (req.body.event_schedule || req.body.event_member_name || req.body.schedule || req.body['担当者名'])) {
         console.log('Detected External System Payload (Utage)');
         type = 'consultation';
+
+        // Normalize allFields with both Japanese and English aliases
+        const normalizedFields = {
+            ...req.body,
+            // Add English aliases for Japanese fields
+            kana: req.body['カナ'] || req.body.kana || '',
+            phone: req.body.phone || req.body['電話番号'] || '',
+            zoom: req.body.zoom || req.body['ZoomURL'] || req.body.zoom_url || '',
+            comment: req.body['コメント'] || req.body.comment || '',
+            schedule: req.body['スケジュール'] || req.body.event_schedule || req.body.schedule || '',
+            staff: req.body['担当者名'] || req.body.event_member_name || req.body.staff || '',
+            referrer: req.body['紹介者'] || req.body.referrer || ''
+        };
+
         data = {
             timestamp: new Date().toISOString(),
             rowIndex: null,
@@ -32,7 +46,7 @@ export default async function handler(req, res) {
             staff: req.body.event_member_name || req.body['担当者名'] || req.body.member_name,
             phone: req.body.phone || req.body.tel || req.body['電話番号'],
             zoom: req.body.zoom || req.body.zoom_url || req.body['ZoomURL'],
-            allFields: req.body
+            allFields: normalizedFields
         };
         // UTAGE usually doesn't send sheetName, but if it's consultation, we'll try to match by config
     }
