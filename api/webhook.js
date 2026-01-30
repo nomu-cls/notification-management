@@ -39,14 +39,21 @@ export default async function handler(req, res) {
 
     const targetSheetName = explicitSheetName || data?.sheetName || (type === 'consultation' ? '個別相談予約一覧' : null);
 
+    // Debug: Log incoming promotion context
+    console.log('[Webhook Debug] Received promotionId:', promotionId);
+    console.log('[Webhook Debug] Target sheetName:', targetSheetName);
+
     // Resolve Promotion Context
     let resolvedConfig = injectedConfig || null;
     let resolvedPromotionId = promotionId;
 
     if (!resolvedConfig) {
         if (promotionId) {
+            console.log(`[Webhook Debug] Loading config for explicit promotionId: ${promotionId}`);
             resolvedConfig = await getConfig(promotionId);
+            console.log(`[Webhook Debug] Loaded config for promotionId: ${promotionId}, roomId: ${resolvedConfig?.roomId}`);
         } else if (targetSheetName) {
+            console.log(`[Webhook Debug] No promotionId provided, searching by sheetName: ${targetSheetName}`);
             const match = await findPromotionBySheetName(targetSheetName);
             if (match) {
                 resolvedConfig = match.config;
