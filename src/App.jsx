@@ -709,7 +709,28 @@ export default function App() {
 
               <h2 className="text-lg font-semibold border-b pb-2">Google スプレッドシート連携</h2>
               <div className="grid gap-4">
-                <InputGroup label="メイン スプレッドシートID" placeholder="1abc1234567890..." value={config.spreadsheetId} onChange={(v) => setConfig({ ...config, spreadsheetId: v })} />
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="block text-sm font-medium text-slate-700">メイン スプレッドシートID</label>
+                    {config.spreadsheetId && (
+                      <a
+                        href={`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}/edit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        📊 スプレッドシートを開く ↗
+                      </a>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="1abc1234567890..."
+                    value={config.spreadsheetId || ''}
+                    onChange={(e) => setConfig({ ...config, spreadsheetId: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
                 <InputGroup label="スタッフ一覧シート名" placeholder="スタッフ一覧" value={config.staffListSheet} onChange={(v) => setConfig({ ...config, staffListSheet: v })} />
                 <InputGroup label="予約一覧シート名" placeholder="個別相談予約一覧" value={config.bookingListSheet} onChange={(v) => setConfig({ ...config, bookingListSheet: v })} />
                 <InputGroup label="スタッフChat対応表シート名" placeholder="スタッフChat" value={config.staffChatSheet} onChange={(v) => setConfig({ ...config, staffChatSheet: v })} />
