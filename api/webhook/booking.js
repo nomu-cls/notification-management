@@ -52,6 +52,12 @@ function normalizePayload(rawPayload) {
         'phone_number': '電話番号',
         'tel': '電話番号',
 
+        // Kana/Furigana mappings
+        'kana': 'カナ',
+        'furigana': 'カナ',
+        'フリガナ': 'カナ',
+        'client_kana': 'カナ',
+
         // Row index mappings
         'row': 'rowIndex',
         'row_index': 'rowIndex',
