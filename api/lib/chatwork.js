@@ -87,17 +87,27 @@ export async function createTask(token, roomId, body, assigneeIds, limitDate = n
         params.append('limit_type', limitType);
     }
 
+    // Debug: Log what we're sending
+    console.log('[createTask Debug] URL:', url);
+    console.log('[createTask Debug] body length:', body?.length);
+    console.log('[createTask Debug] body preview:', body?.substring(0, 100));
+    console.log('[createTask Debug] params.toString():', params.toString().substring(0, 200));
+
     const response = await fetch(url, {
         method: 'POST',
         headers: getHeaders(token),
         body: params
     });
 
+    const responseText = await response.text();
+    console.log('[createTask Debug] response status:', response.status);
+    console.log('[createTask Debug] response body:', responseText);
+
     if (!response.ok) {
-        throw new Error(`Chatwork Task API error: ${response.status} ${await response.text()}`);
+        throw new Error(`Chatwork Task API error: ${response.status} ${responseText}`);
     }
 
-    return response.json();
+    return JSON.parse(responseText);
 }
 
 /**
