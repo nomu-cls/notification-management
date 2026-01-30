@@ -11,6 +11,9 @@
  */
 
 const CONFIG = {
+    // ★重要: プロモーションID（notification-managementの接続設定から確認してコピー）
+    PROMOTION_ID: '',  // ← ここにプロモーションIDを入力
+
     // Vercel API Endpoint
     WEBHOOK_URL: 'https://notification-management-khaki.vercel.app/api/webhook',
 
@@ -113,6 +116,7 @@ function onFormSubmit(e) {
 
         const payload = {
             type: formType,
+            promotionId: CONFIG.PROMOTION_ID,  // ← プロモーションID追加
             data: normalizedData
         };
 
