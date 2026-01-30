@@ -156,6 +156,10 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
                     });
                 });
 
+                // Debug: Log allFields to see what data we received
+                console.log('[Consultation Debug] allFields keys:', Object.keys(data.allFields || {}));
+                console.log('[Consultation Debug] allFields.カナ:', data.allFields?.['カナ']);
+                console.log('[Consultation Debug] allFields (full):', JSON.stringify(data.allFields));
                 console.log('Constructed rowValues:', JSON.stringify(rowValues));
                 console.log('Appending to spreadsheet:', spreadsheetId, 'sheet:', bookingListSheet);
 
