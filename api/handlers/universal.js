@@ -123,7 +123,11 @@ export async function handleUniversalNotification(data, injectedConfig = null) {
                 // Build Body
                 let taskBody = '';
                 if (rule.task.bodyTemplate) {
+                    console.log('[Task Debug] bodyTemplate:', JSON.stringify(rule.task.bodyTemplate));
+                    console.log('[Task Debug] formatData keys:', Object.keys(formatData));
+                    console.log('[Task Debug] allFields:', JSON.stringify(data.allFields));
                     taskBody = formatMessage(rule.task.bodyTemplate, formatData);
+                    console.log('[Task Debug] taskBody result:', taskBody);
                 } else {
                     taskBody = `【タスク】${data.sheetName}に行が追加されました`;
                 }
