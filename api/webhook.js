@@ -100,6 +100,14 @@ export default async function handler(req, res) {
         let result;
         switch (type) {
             case 'consultation':
+                // Check if the current promotion's config is the one that should handle this sheet
+                if (resolvedPromotionId && data.sheetName) {
+                    const match = await findPromotionBySheetName(data.sheetName);
+                    if (match && match.promotionId !== resolvedPromotionId) {
+                        console.log(`[Webhook] Skipping consultation for promotion ${resolvedPromotionId} because sheet ${data.sheetName} is owned by ${match.promotionId}`);
+                        return res.status(200).json({ success: true, skipped: true, reason: 'promotion_mismatch' });
+                    }
+                }
                 result = await handleConsultationBooking(data, resolvedConfig);
                 break;
             case 'universal':

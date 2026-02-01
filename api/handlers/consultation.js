@@ -190,16 +190,26 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
         }
     }
 
-    // Stop if staff matching failed previously and we couldn't send notification
+    // Step 4: [MODIFIED] Send notification (or handle unmatched)
     if (!matchedStaff) {
-        await notifyError({
-            caseName: CASE_NAME,
-            errorCategory: ErrorCategory.STAFF_MATCH_FAILED,
-            errorMessage: `No matching staff found for DateTime: "${data.dateTime}", Consultant: "${consultantName}". (Indices: DT=${dateTimeColIdx}, CS=${consultantColIdx}, Rows=${staffList?.length})`,
-            rowNumber: data.rowIndex,
-            payload: data
+        console.warn('No matching staff found. Sending fallback notification.');
+
+        // Construct fallback message for general room
+        const fallbackTemplate = '【個別相談予約（担当未割当）】\n日時：{dateTime}\nお客様：{clientName}\n入力されたコンサル：{consultant}\n\n※シフト表に一致する担当者がいないため、手動で割り当ててください。';
+        const message = formatMessage(fallbackTemplate, {
+            ...data.allFields,
+            dateTime: data.dateTime,
+            clientName: data.clientName,
+            consultant: consultantName
         });
-        return { matched: false };
+
+        try {
+            await sendMessage(chatworkToken, roomId, message);
+        } catch (error) {
+            console.error('Failed to send fallback notification:', error.message);
+        }
+
+        // Do NOT return here. Continue to generate Viewer URL and finish.
     }
 
     // Step 2: Write staff name to Column I (Staff) - Legacy update fallback if row was already there
@@ -260,15 +270,26 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
 
     if (!chatworkAccountId) {
         // Case 1 specific: Chatwork ID missing
-        await notifyError({
-            caseName: CASE_NAME,
-            errorCategory: ErrorCategory.CHATWORK_ID_MISSING,
-            errorMessage: `No Chatwork ID found for staff: "${matchedStaff}"`,
-            rowNumber: data.rowIndex,
-            payload: { matchedStaff }
-        });
         console.warn('No Chatwork ID found for staff:', matchedStaff);
-        return { matched: true, notified: false, staff: matchedStaff, viewerUrl };
+
+        // Send notification to the main room even if TO tag is missing
+        const messageTemplate = consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{matchedStaff}';
+        const message = formatMessage(messageTemplate, {
+            ...data.allFields,
+            dateTime: data.dateTime,
+            clientName: data.clientName,
+            consultant: consultantName,
+            matchedStaff: matchedStaff,
+            staff: matchedStaff
+        });
+
+        try {
+            await sendMessage(chatworkToken, roomId, `（担当者チャット設定未完了）\n${message}`);
+        } catch (error) {
+            console.error('Failed to send notification (no Chatwork ID):', error.message);
+        }
+
+        return { matched: true, notified: true, staff: matchedStaff, viewerUrl };
     }
 
     // Step 5: Send notification
