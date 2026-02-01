@@ -284,7 +284,7 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
         });
 
         try {
-            await sendMessage(chatworkToken, roomId, `（担当者チャット設定未完了）\n${message}`);
+            await sendMessage(chatworkToken, roomId, message);
         } catch (error) {
             console.error('Failed to send notification (no Chatwork ID):', error.message);
         }
