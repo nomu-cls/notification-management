@@ -190,26 +190,9 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
         }
     }
 
-    // Step 4: [MODIFIED] Send notification (or handle unmatched)
+    // Step 4: Notification (Handled in Step 5 if staff matched)
     if (!matchedStaff) {
-        console.warn('No matching staff found. Sending fallback notification.');
-
-        // Construct fallback message for general room
-        const fallbackTemplate = '【個別相談予約（担当未割当）】\n日時：{dateTime}\nお客様：{clientName}\n入力されたコンサル：{consultant}\n\n※シフト表に一致する担当者がいないため、手動で割り当ててください。';
-        const message = formatMessage(fallbackTemplate, {
-            ...data.allFields,
-            dateTime: data.dateTime,
-            clientName: data.clientName,
-            consultant: consultantName
-        });
-
-        try {
-            await sendMessage(chatworkToken, roomId, message);
-        } catch (error) {
-            console.error('Failed to send fallback notification:', error.message);
-        }
-
-        // Do NOT return here. Continue to generate Viewer URL and finish.
+        console.log('No matching staff found. Skipping notification per user preference.');
     }
 
     // Step 2: Write staff name to Column I (Staff) - Legacy update fallback if row was already there
@@ -269,27 +252,8 @@ export async function handleConsultationBooking(data, injectedConfig = null) {
     }
 
     if (!chatworkAccountId) {
-        // Case 1 specific: Chatwork ID missing
         console.warn('No Chatwork ID found for staff:', matchedStaff);
-
-        // Send notification to the main room even if TO tag is missing
-        const messageTemplate = consultationTemplate || '【個別相談予約】\n日時：{dateTime}\nお客様：{clientName}\n担当：{matchedStaff}';
-        const message = formatMessage(messageTemplate, {
-            ...data.allFields,
-            dateTime: data.dateTime,
-            clientName: data.clientName,
-            consultant: consultantName,
-            matchedStaff: matchedStaff,
-            staff: matchedStaff
-        });
-
-        try {
-            await sendMessage(chatworkToken, roomId, message);
-        } catch (error) {
-            console.error('Failed to send notification (no Chatwork ID):', error.message);
-        }
-
-        return { matched: true, notified: true, staff: matchedStaff, viewerUrl };
+        return { matched: true, notified: false, staff: matchedStaff, viewerUrl };
     }
 
     // Step 5: Send notification
