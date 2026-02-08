@@ -948,6 +948,38 @@ export default function App() {
                   <p className="text-[10px] text-slate-400 mt-4 italic">※ カンマ区切りで複数のキーを指定可能です。</p>
                 </div>
               </div>
+
+              {/* Viewer URL Settings */}
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <h3 className="font-medium text-slate-700">ビューワーURL設定</h3>
+                  <p className="text-xs text-slate-500">課題確認用のビューワーURLに付与するパラメータを設定します</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-slate-500 font-medium">プロモーションID</label>
+                    <input
+                      type="text"
+                      placeholder="課題集約で使用するプロモーションID"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm font-mono"
+                      value={config.promotionId || ''}
+                      onChange={(e) => setConfig({ ...config, promotionId: e.target.value })}
+                    />
+                    <p className="text-[10px] text-slate-400">※ 現在のプロモーションIDを使用する場合は空欄でOK</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-slate-500 font-medium">ビューワーURL列番号</label>
+                    <input
+                      type="number"
+                      placeholder="15 (O列)"
+                      className="px-3 py-2 bg-white border border-slate-300 rounded text-sm"
+                      value={config.viewerUrlColumn || 15}
+                      onChange={(e) => setConfig({ ...config, viewerUrlColumn: parseInt(e.target.value) || 15 })}
+                    />
+                    <p className="text-[10px] text-slate-400">※ HYPERLINKを書き込む列番号 (A=1, O=15)</p>
+                  </div>
+                </div>
+              </div>
             </section>
           )}
 
